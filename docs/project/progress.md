@@ -174,9 +174,9 @@ The generated project has a clean baseline committed on this branch, with partia
 - [x] Create room with initial paused playback state.
 - [x] Review room service boundaries, snapshot shape, slug behavior, and transaction assumptions before marking Phase 3 complete.
 - [x] Add/verify room service tests.
-- [ ] Add admin room creation API.
-- [ ] Build room creation page using TanStack Query mutations.
-- [ ] Display shareable room URL.
+- [x] Add admin room creation API.
+- [x] Build room creation page using TanStack Query mutations.
+- [x] Display shareable room URL.
 
 ### Phase 4: Realtime Service
 
