@@ -16,6 +16,7 @@ export function ChatPanel({
   onSend: (payload: ChatMessageInput) => void
 }) {
   const messages = useRoomStore((s) => s.messages)
+  const appendChat = useRoomStore((s) => s.appendChat)
   const [draft, setDraft] = useState("")
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -42,6 +43,14 @@ export function ChatPanel({
           event.preventDefault()
           const trimmed = draft.trim()
           if (trimmed.length === 0 || trimmed.length > 1000) return
+          appendChat({
+            id: `local-${crypto.randomUUID()}`,
+            roomId: "",
+            clientId,
+            nickname,
+            body: trimmed,
+            createdAt: new Date().toISOString(),
+          })
           onSend({ roomSlug, clientId, nickname, body: trimmed })
           setDraft("")
         }}

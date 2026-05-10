@@ -21,7 +21,7 @@ export function RoomShell({ snapshot }: { snapshot: RoomSnapshot }) {
   const setPlaybackState = useRoomStore((s) => s.setPlaybackState)
   const setMembers = useRoomStore((s) => s.setMembers)
   const setHistory = useRoomStore((s) => s.setHistory)
-  const appendChat = useRoomStore((s) => s.appendChat)
+  const reconcileChat = useRoomStore((s) => s.reconcileChat)
   const setConnectionStatus = useRoomStore((s) => s.setConnectionStatus)
 
   useEffect(() => { setRoomState(snapshot) }, [snapshot, setRoomState])
@@ -42,13 +42,13 @@ export function RoomShell({ snapshot }: { snapshot: RoomSnapshot }) {
     socket.on("room:state", (room: RoomSnapshot) => setRoomState(room))
     socket.on("room:members", (members: Member[]) => setMembers(members))
     socket.on("chat:history", (messages: ChatMessage[]) => setHistory(messages))
-    socket.on("chat:message", (message: ChatMessage) => appendChat(message))
+    socket.on("chat:message", (message: ChatMessage) => reconcileChat(message))
     socket.on("playback:state", (state: PlaybackState) => setPlaybackState(state))
 
     setConnectionStatus("connecting")
     socket.connect()
     return () => { socket.disconnect(); socketRef.current = null }
-  }, [nickname, snapshot.slug, setRoomState, setPlaybackState, setMembers, setHistory, appendChat, setConnectionStatus])
+  }, [nickname, snapshot.slug, setRoomState, setPlaybackState, setMembers, setHistory, reconcileChat, setConnectionStatus])
 
   if (!nickname) {
     return (

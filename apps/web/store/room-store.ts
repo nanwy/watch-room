@@ -44,6 +44,7 @@ type RoomStore = {
   setMembers: (members: Member[]) => void
   setHistory: (messages: ChatMessage[]) => void
   appendChat: (message: ChatMessage) => void
+  reconcileChat: (incoming: ChatMessage) => void
 }
 
 const MAX_MESSAGES = 100
@@ -62,6 +63,22 @@ export function createRoomStore(): UseBoundStore<StoreApi<RoomStore>> {
     setHistory: (messages) => set({ messages: messages.slice(-MAX_MESSAGES) }),
     appendChat: (message) =>
       set((s) => ({ messages: [...s.messages, message].slice(-MAX_MESSAGES) })),
+    reconcileChat: (incoming) =>
+      set((s) => {
+        if (s.messages.some((m) => m.id === incoming.id)) return s
+        const localIndex = s.messages.findIndex(
+          (m) =>
+            m.id.startsWith("local-") &&
+            m.clientId === incoming.clientId &&
+            m.body === incoming.body,
+        )
+        if (localIndex >= 0) {
+          const next = [...s.messages]
+          next[localIndex] = incoming
+          return { messages: next }
+        }
+        return { messages: [...s.messages, incoming].slice(-MAX_MESSAGES) }
+      }),
   }))
 }
 

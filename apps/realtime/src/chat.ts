@@ -4,18 +4,9 @@ import type { DbClient } from "@workspace/db/client"
 
 export async function sendChatMessage(prisma: DbClient, input: ChatMessageInput) {
   const payload = chatMessageSchema.parse(input)
-  const room = await prisma.room.findUnique({
-    where: { slug: payload.roomSlug },
-    select: { id: true },
-  })
-
-  if (!room) {
-    throw new Error("Room not found.")
-  }
-
   return prisma.chatMessage.create({
     data: {
-      roomId: room.id,
+      room: { connect: { slug: payload.roomSlug } },
       clientId: payload.clientId,
       nickname: payload.nickname.trim(),
       body: payload.body.trim(),

@@ -12,7 +12,7 @@ describe("sendChatMessage", () => {
       nickname: " Nia ",
       body: " hello ",
     })).resolves.toMatchObject({
-      roomId: "room-1",
+      roomSlug: "room-123",
       nickname: "Nia",
       body: "hello",
     })
@@ -32,18 +32,22 @@ describe("sendChatMessage", () => {
 
 function makeChatPrisma() {
   return {
-    room: {
-      findUnique: async () => ({ id: "room-1" }),
-    },
     chatMessage: {
       create: async ({ data }: {
         data: {
-          roomId: string
+          room: { connect: { slug: string } }
           clientId: string
           nickname: string
           body: string
         }
-      }) => ({ id: "message-1", createdAt: new Date(), ...data }),
+      }) => ({
+        id: "message-1",
+        createdAt: new Date(),
+        roomSlug: data.room.connect.slug,
+        clientId: data.clientId,
+        nickname: data.nickname,
+        body: data.body,
+      }),
     },
   } as unknown as Parameters<typeof sendChatMessage>[0]
 }
