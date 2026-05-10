@@ -100,12 +100,14 @@ export async function importCandidates(
     const existingAnime = await prisma.anime.findUnique({
       where: { normalizedTitle: normalizedAnimeTitle },
     })
+    let createdAnimeId: string | null = null
     const anime = existingAnime ?? await prisma.anime.create({
       data: {
         title: candidate.animeTitle.trim(),
         normalizedTitle: normalizedAnimeTitle,
       },
     })
+    if (!existingAnime) createdAnimeId = anime.id
 
     const existingEpisode = await prisma.episode.findFirst({
       where: {
@@ -120,16 +122,23 @@ export async function importCandidates(
     }
 
     const animeDir = path.join(mediaStorageDir, `anime_${anime.id}`)
-    await mkdir(animeDir, { recursive: true })
     const storagePath = path.join(animeDir, `episode_${randomUUID()}${candidate.extension}`)
 
     let storageCreated = false
     try {
+      await mkdir(animeDir, { recursive: true })
       await link(candidate.sourcePath, storagePath)
       storageCreated = true
     } catch {
-      await copyFile(candidate.sourcePath, storagePath)
-      storageCreated = true
+      try {
+        await copyFile(candidate.sourcePath, storagePath)
+        storageCreated = true
+      } catch (error) {
+        if (createdAnimeId) {
+          await prisma.anime.delete({ where: { id: createdAnimeId } }).catch(() => undefined)
+        }
+        throw error
+      }
     }
 
     try {

@@ -82,6 +82,18 @@ describe("media scanner", () => {
     await expect(readFile(keepPath, "utf8")).resolves.toBe("keep")
     await expect(stat(prisma.__lastStoragePath)).rejects.toThrow()
   })
+
+  test("does not leave an anime row when storage preparation fails", async () => {
+    const storageDir = await makeTempDir()
+    const prisma = makeImportPrisma()
+
+    await expect(importCandidates([
+      makeCandidate({ sourcePath: path.join(storageDir, "missing.mp4") }),
+    ], storageDir, prisma)).rejects.toThrow()
+
+    expect(prisma.__animes).toHaveLength(0)
+    expect(prisma.__episodes).toHaveLength(0)
+  })
 })
 
 function makeCandidate(overrides: Partial<ImportCandidate> = {}): ImportCandidate {
@@ -128,6 +140,10 @@ function makeImportPrisma(options: { failEpisodeCreate?: boolean } = {}) {
         const anime = { id: `anime-${animes.length + 1}`, ...data }
         animes.push(anime)
         return anime
+      },
+      delete: async ({ where }: { where: { id: string } }) => {
+        const index = animes.findIndex((anime) => anime.id === where.id)
+        if (index >= 0) animes.splice(index, 1)
       },
     },
     episode: {
