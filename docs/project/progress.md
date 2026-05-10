@@ -1,6 +1,6 @@
 # Watch Room Progress
 
-Last updated: 2026-05-10 18:10 CST
+Last updated: 2026-05-10 20:10 CST
 
 ## Current Status
 
@@ -180,64 +180,81 @@ The generated project has a clean baseline committed on this branch, with partia
 
 ### Phase 4: Realtime Service
 
-- [ ] Implement Socket.IO server.
-- [ ] Implement nickname/clientId room join.
-- [ ] Track online member sessions.
-- [ ] Broadcast member list updates.
-- [ ] Persist and broadcast chat messages.
-- [ ] Load recent 100 chat messages on join/reconnect.
-- [ ] Validate playback control events.
-- [ ] Persist authoritative playback state.
-- [ ] Broadcast playback state updates.
+- [x] Implement Socket.IO server.
+- [x] Implement nickname/clientId room join.
+- [x] Track online member sessions.
+- [x] Broadcast member list updates.
+- [x] Persist and broadcast chat messages.
+- [x] Load recent 100 chat messages on join/reconnect.
+- [x] Validate playback control events.
+- [x] Persist authoritative playback state.
+- [x] Broadcast playback state updates.
 
 ### Phase 5: Watch Room UI
 
-- [ ] Build nickname join flow.
-- [ ] Store `clientId` and nickname locally.
-- [ ] Add TanStack Query provider.
-- [ ] Add Zustand store for room UI/realtime state.
-- [ ] Build video player with synchronized controls.
-- [ ] Build anime/episode switcher.
-- [ ] Build chat panel.
-- [ ] Build online member list.
-- [ ] Show reconnecting/disconnected states.
-- [ ] Correct playback drift over threshold.
+- [x] Build nickname join flow.
+- [x] Store `clientId` and nickname locally.
+- [x] Add TanStack Query provider.
+- [x] Add Zustand store for room UI/realtime state.
+- [x] Build video player with synchronized controls.
+- [x] Build anime/episode switcher.
+- [x] Build chat panel.
+- [x] Build online member list.
+- [x] Show reconnecting/disconnected states.
+- [x] Correct playback drift over threshold.
 
 ### Phase 6: Media Serving
 
-- [ ] Add episode media route.
-- [ ] Validate file path stays inside media directory.
-- [ ] Return correct content type.
-- [ ] Implement HTTP range requests for seeking.
-- [ ] Show unsupported/missing media states in room UI.
+- [x] Add episode media route.
+- [x] Validate file path stays inside media directory.
+- [x] Return correct content type.
+- [x] Implement HTTP range requests for seeking.
+- [x] Show unsupported/missing media states in room UI.
 
 ### Phase 7: Deployment
 
-- [ ] Add Dockerfile for web app.
-- [ ] Add Dockerfile for realtime service.
-- [ ] Add Docker Compose services:
+- [x] Add Dockerfile for web app.
+- [x] Add Dockerfile for realtime service.
+- [x] Add Docker Compose services:
   - web
   - realtime
   - postgres
   - proxy
-- [ ] Mount media directories:
+- [x] Mount media directories:
   - `/data/imports`
   - `/data/media`
-- [ ] Add Caddy reverse proxy config.
-- [ ] Document VPS environment setup.
+- [x] Add Caddy reverse proxy config.
+- [x] Document VPS environment setup.
 
 ### Phase 8: Verification
 
-- [ ] Unit tests pass.
-- [ ] Typecheck passes.
-- [ ] Lint passes.
-- [ ] Docker Compose builds.
-- [ ] Two browser sessions can join the same room.
-- [ ] Chat syncs both ways.
-- [ ] Playback controls sync both ways.
-- [ ] Episode switching syncs.
-- [ ] Refresh/reconnect restores playback state and recent chat.
+- [x] Unit tests pass.
+- [x] Typecheck passes.
+- [x] Lint passes.
+- [ ] Docker Compose builds. (manual: requires Docker installed on host)
+- [ ] Two browser sessions can join the same room. (manual via Playwright e2e or hand-driven check)
+- [ ] Chat syncs both ways. (manual)
+- [ ] Playback controls sync both ways. (manual)
+- [ ] Episode switching syncs. (manual)
+- [ ] Refresh/reconnect restores playback state and recent chat. (manual)
 
 ## Immediate Next Step
 
-The next engineering step is Phase 1 validation: add or verify tests for the existing data/shared domain code, then review the early media scanner and room service boundaries so later Phase 2/3 work extends the current implementation instead of recreating it.
+Phases 4–7 implementation work is complete. Phase 8 acceptance work that requires running services (Docker build, two-browser sync via Playwright) is left as a manual verification step on the deployment host:
+
+- Run `docker compose build` once Docker is available on the target VPS.
+- Place an MP4 under `MEDIA_IMPORT_DIR/<动漫名>/<剧集>.mp4`, start `apps/web` and `apps/realtime`, and either:
+  - run `pnpm --filter web e2e` for the Playwright two-browser smoke test, or
+  - open the room URL in two browser windows and exercise chat / play / pause / seek / episode switch / reconnect manually.
+
+### 2026-05-10 (Phase 4–7 implementation)
+
+- Realtime hardening: introduced `broadcastMembersAfterDisconnect` and removed the legacy `disconnectSocketSession` so the online member list refreshes when sockets drop.
+- Public room snapshot API (`GET /api/rooms/[slug]/snapshot`) added so the SSR room page can hydrate by slug without admin auth.
+- Browser identity (`apps/web/lib/client-id.ts`), socket factory (`socket-client.ts`), and media URL helper (`media-url.ts`) added with unit tests.
+- Zustand room store (`apps/web/store/room-store.ts`) holds connection status, room snapshot, playback state, members, and chat history (capped at 100).
+- Room page (`/room/[slug]`) renders nickname join flow first, then a connected room shell with `WatchPlayer` (drift-corrected video at 1.5 s threshold), `MemberList`, `ConnectionStatus`, `ChatPanel`, and `EpisodeSwitcher` (uses `/api/library`).
+- Media streaming route (`/api/media/[episodeId]`) supports HTTP Range with traversal protection.
+- UI copy across admin and room surfaces now Chinese-first.
+- Docker Compose deployment files added: per-app Dockerfiles, `docker-compose.yml`, `docker/Caddyfile`, deployment notes.
+- Playwright E2E scaffolding added (`apps/web/e2e/`); requires running services and an MP4 to execute.
