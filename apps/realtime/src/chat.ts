@@ -19,9 +19,11 @@ export async function getRecentChatMessages(
   roomId: string,
   limit = 100,
 ) {
-  return prisma.chatMessage.findMany({
+  const messages = await prisma.chatMessage.findMany({
     where: { roomId },
     orderBy: { createdAt: "desc" },
     take: limit,
-  }).then((messages) => messages.reverse())
+  })
+
+  return messages.reverse()
 }
