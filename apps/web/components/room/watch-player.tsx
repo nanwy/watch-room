@@ -8,6 +8,7 @@ import { useRoomStore } from "@/store/room-store"
 
 const DRIFT_THRESHOLD_SECONDS = 1.5
 const PROGRAMMATIC_WINDOW_MS = 600
+const LOCAL_CONTROL_CONFIRM_MS = 3500
 
 type Props = {
   episodeId: string
@@ -25,6 +26,7 @@ export function WatchPlayer({ episodeId, episodeMimeType, playbackSupportStatus,
   const ref = useRef<HTMLVideoElement>(null)
   const playbackState = useRoomStore((s) => s.playbackState)
   const programmaticUntilRef = useRef(0)
+  const localControlUntilRef = useRef(0)
   const [error, setError] = useState<string | null>(null)
 
   function isProgrammatic() {
@@ -34,6 +36,19 @@ export function WatchPlayer({ episodeId, episodeMimeType, playbackSupportStatus,
   function withProgrammatic(fn: () => void) {
     programmaticUntilRef.current = Date.now() + PROGRAMMATIC_WINDOW_MS
     fn()
+  }
+
+  function markLocalControlPending() {
+    localControlUntilRef.current = Date.now() + LOCAL_CONTROL_CONFIRM_MS
+  }
+
+  function shouldDeferRemoteCorrection(video: HTMLVideoElement, target: number) {
+    if (Date.now() >= localControlUntilRef.current) return false
+    if (Math.abs(video.currentTime - target) <= DRIFT_THRESHOLD_SECONDS) {
+      localControlUntilRef.current = 0
+      return false
+    }
+    return true
   }
 
   useEffect(() => {
@@ -47,6 +62,8 @@ export function WatchPlayer({ episodeId, episodeMimeType, playbackSupportStatus,
       updatedAtMs: new Date(playbackState.updatedAt).getTime(),
       nowMs: Date.now(),
     })
+
+    if (shouldDeferRemoteCorrection(video, target)) return
 
     withProgrammatic(() => {
       if (Math.abs(video.currentTime - target) > DRIFT_THRESHOLD_SECONDS) {
@@ -75,6 +92,7 @@ export function WatchPlayer({ episodeId, episodeMimeType, playbackSupportStatus,
         updatedAtMs: new Date(state.updatedAt).getTime(),
         nowMs: Date.now(),
       })
+      if (shouldDeferRemoteCorrection(video, expected)) return
       if (Math.abs(video.currentTime - expected) > DRIFT_THRESHOLD_SECONDS) {
         withProgrammatic(() => {
           video.currentTime = expected
@@ -109,12 +127,14 @@ export function WatchPlayer({ episodeId, episodeMimeType, playbackSupportStatus,
           if (isProgrammatic()) return
           const state = useRoomStore.getState().playbackState
           if (state?.status === "playing") return
+          markLocalControlPending()
           onControl({ type: "play", positionSeconds: ref.current?.currentTime ?? 0 })
         }}
         onPause={() => {
           if (isProgrammatic()) return
           const state = useRoomStore.getState().playbackState
           if (state?.status === "paused") return
+          markLocalControlPending()
           onControl({ type: "pause", positionSeconds: ref.current?.currentTime ?? 0 })
         }}
         onSeeked={() => {
@@ -129,12 +149,14 @@ export function WatchPlayer({ episodeId, episodeMimeType, playbackSupportStatus,
             nowMs: Date.now(),
           })
           if (Math.abs(ref.current.currentTime - expected) <= DRIFT_THRESHOLD_SECONDS) return
+          markLocalControlPending()
           onControl({ type: "seek", positionSeconds: ref.current.currentTime })
         }}
         onRateChange={() => {
           if (isProgrammatic() || !ref.current) return
           const state = useRoomStore.getState().playbackState
           if (state && Math.abs(state.playbackRate - ref.current.playbackRate) < 0.001) return
+          markLocalControlPending()
           onControl({ type: "setPlaybackRate", positionSeconds: ref.current.currentTime, playbackRate: ref.current.playbackRate })
         }}
         onError={() => setError("无法播放该剧集，文件可能缺失或格式不受支持。")}
