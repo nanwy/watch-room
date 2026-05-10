@@ -28,8 +28,10 @@ io.on("connection", (socket) => {
       socket.emit("room:state", result.room)
       socket.emit("chat:history", result.messages)
       io.to(result.room.slug).emit("room:members", result.members)
+      console.log(`[room:join] slug=${result.room.slug} socket=${socket.id} history=${result.messages.length}`)
       ack?.({ ok: true })
     } catch (error) {
+      console.error(`[room:join] socket=${socket.id} failed:`, error)
       ack?.({ ok: false, error: error instanceof Error ? error.message : "Join failed" })
     }
   })

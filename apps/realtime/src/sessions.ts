@@ -11,9 +11,21 @@ export async function joinRoomSession(prisma: DbClient, input: JoinRoomSessionIn
   const payload = joinRoomSchema.parse(input)
   const room = await prisma.room.findUnique({
     where: { slug: payload.roomSlug },
-    include: {
-      currentAnime: true,
-      currentEpisode: true,
+    select: {
+      id: true,
+      slug: true,
+      currentAnimeId: true,
+      currentEpisodeId: true,
+      currentAnime: { select: { id: true, title: true } },
+      currentEpisode: {
+        select: {
+          id: true,
+          title: true,
+          animeId: true,
+          mimeType: true,
+          playbackSupportStatus: true,
+        },
+      },
       playbackState: true,
     },
   })

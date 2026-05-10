@@ -41,7 +41,10 @@ export function RoomShell({ snapshot }: { snapshot: RoomSnapshot }) {
 
     socket.on("room:state", (room: RoomSnapshot) => setRoomState(room))
     socket.on("room:members", (members: Member[]) => setMembers(members))
-    socket.on("chat:history", (messages: ChatMessage[]) => setHistory(messages))
+    socket.on("chat:history", (messages: ChatMessage[]) => {
+      console.log("[room-shell] chat:history", messages.length, messages)
+      setHistory(messages)
+    })
     socket.on("chat:message", (message: ChatMessage) => reconcileChat(message))
     socket.on("playback:state", (state: PlaybackState) => setPlaybackState(state))
 
