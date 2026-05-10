@@ -58,7 +58,7 @@ export function ImportScanButton() {
         />
         <div className="mt-2 min-h-5 text-sm text-muted-foreground">
           {mutation.isSuccess
-            ? `扫描 ${mutation.data.candidates} 个；导入 ${mutation.data.imported}，跳过 ${mutation.data.skipped}。`
+            ? `扫描 ${mutation.data.candidates} 个，导入 ${mutation.data.imported}，跳过 ${mutation.data.skipped}。`
             : null}
           {mutation.isError ? mutation.error.message : null}
         </div>

@@ -18,7 +18,7 @@ export default function Page() {
           </div>
         </div>
         <div className="text-muted-foreground font-mono text-xs">
-          （按 <kbd>d</kbd> 切换深色模式）
+          (按 <kbd>d</kbd> 切换深色模式)
         </div>
       </div>
     </div>
