@@ -7,6 +7,15 @@ import type { ChatMessageInput } from "@workspace/shared/events"
 
 import { useRoomStore } from "@/store/room-store"
 
+function createLocalMessageId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID()
+  }
+
+  const random = Math.random().toString(36).slice(2)
+  return `${Date.now().toString(36)}-${random}`
+}
+
 export function ChatPanel({
   roomSlug, clientId, nickname, onSend,
 }: {
@@ -44,7 +53,7 @@ export function ChatPanel({
           const trimmed = draft.trim()
           if (trimmed.length === 0 || trimmed.length > 1000) return
           appendChat({
-            id: `local-${crypto.randomUUID()}`,
+            id: `local-${createLocalMessageId()}`,
             roomId: "",
             clientId,
             nickname,
