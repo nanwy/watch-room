@@ -199,20 +199,20 @@ Continue with Task 2 as Phase 1 work. The next worker must validate and extend t
 
 ## Task 2: Add Prisma Schema and Shared Playback Rules
 
-Phase 1 starts here. Before adding or replacing code, inspect the existing Prisma schema, shared playback math, event schemas, and validation files, then extend them to match the design spec.
+Phase 1 validation starts here. Before adding or replacing code, inspect the existing Prisma schema, shared playback math, event schemas, and validation files, then add missing tests and fill implementation gaps against the design spec. Treat the checked-in Phase 1 domain code as partial work to review and extend, not absent work to recreate.
 
 **Files:**
 
-- Create: `packages/db/prisma/schema.prisma`
-- Create: `packages/db/src/client.ts`
-- Create: `packages/shared/src/playback.ts`
-- Create: `packages/shared/src/events.ts`
-- Create: `packages/shared/src/validation.ts`
-- Create: `packages/shared/tests/playback.test.ts`
+- Inspect/modify: `packages/db/prisma/schema.prisma`
+- Inspect/modify: `packages/db/src/client.ts`
+- Inspect/modify: `packages/shared/src/playback.ts`
+- Inspect/modify: `packages/shared/src/events.ts`
+- Inspect/modify: `packages/shared/src/validation.ts`
+- Create/modify: `packages/shared/tests/playback.test.ts`
 
-- [ ] **Step 1: Write failing playback math tests**
+- [ ] **Step 1: Add or verify playback math tests**
 
-Create `packages/shared/tests/playback.test.ts`:
+Add `packages/shared/tests/playback.test.ts` if it is missing, or review and extend the existing test file:
 
 ```ts
 import { describe, expect, it } from "vitest";
@@ -245,7 +245,7 @@ describe("calculateEffectivePosition", () => {
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 2: Run playback tests against the current baseline**
 
 Run:
 
@@ -253,9 +253,9 @@ Run:
 pnpm --filter @workspace/shared test -- playback.test.ts
 ```
 
-Expected: FAIL because `../src/playback` does not exist.
+Expected: tests should either pass or expose specific gaps in the existing shared playback implementation. Use any failures to guide the next implementation step.
 
-- [ ] **Step 3: Implement shared playback and event schemas**
+- [ ] **Step 3: Review and complete shared playback and event schemas**
 
 `packages/shared/src/playback.ts`:
 
@@ -275,11 +275,11 @@ export function calculateEffectivePosition(input: {
 }
 ```
 
-`packages/shared/src/events.ts` should export Zod schemas for `joinRoom`, `chatMessage`, and playback control events.
+`packages/shared/src/events.ts` should export Zod schemas for `joinRoom`, `chatMessage`, and playback control events. Preserve existing compatible exports and extend them where the spec requires more coverage.
 
-- [ ] **Step 4: Add Prisma schema**
+- [ ] **Step 4: Review and complete Prisma schema**
 
-Implement `packages/db/prisma/schema.prisma` with `Anime`, `Episode`, `Room`, `RoomPlaybackState`, `ChatMessage`, and `RoomMemberSession` matching the design spec. Use PostgreSQL, cuid IDs, indexes on `Room.slug`, `Episode.animeId`, `ChatMessage.roomId/createdAt`, and unique room playback state by `roomId`.
+Ensure `packages/db/prisma/schema.prisma` defines `Anime`, `Episode`, `Room`, `RoomPlaybackState`, `ChatMessage`, and `RoomMemberSession` matching the design spec. Use PostgreSQL, cuid IDs, indexes on `Room.slug`, `Episode.animeId`, `ChatMessage.roomId/createdAt`, and unique room playback state by `roomId`.
 
 - [ ] **Step 5: Generate Prisma client**
 
@@ -310,13 +310,15 @@ git commit -m "feat: add data model and playback rules"
 
 ## Task 3: Implement Media Scanner
 
+The repository already contains an early media scanner. Review its current parsing, import behavior, and database interactions before changing it. Add missing tests first, then extend the existing scanner instead of replacing it wholesale unless the existing shape is incompatible with the spec.
+
 **Files:**
 
-- Create: `packages/db/src/media-scanner.ts`
-- Create: `packages/db/tests/media-scanner.test.ts`
+- Inspect/modify: `packages/db/src/media-scanner.ts`
+- Create/modify: `packages/db/tests/media-scanner.test.ts`
 - Modify: `packages/db/src/client.ts`
 
-- [ ] **Step 1: Write scanner tests**
+- [ ] **Step 1: Add or extend scanner tests**
 
 Test these cases:
 
@@ -328,7 +330,7 @@ Test these cases:
 
 Use temporary directories from Node's `fs.mkdtemp`.
 
-- [ ] **Step 2: Run scanner tests to verify failure**
+- [ ] **Step 2: Run scanner tests against the current baseline**
 
 Run:
 
@@ -336,9 +338,9 @@ Run:
 pnpm --filter @workspace/db test -- media-scanner.test.ts
 ```
 
-Expected: FAIL because scanner does not exist.
+Expected: tests should either pass or expose specific gaps in the existing media scanner. Use any failures to guide the implementation step.
 
-- [ ] **Step 3: Implement scanner as pure discovery plus import action**
+- [ ] **Step 3: Review and complete scanner as pure discovery plus import action**
 
 `discoverImportCandidates(importDir)` should return parsed candidates without touching the database.
 
@@ -472,9 +474,12 @@ git commit -m "feat: add media library management"
 
 ## Task 6: Add Room Creation
 
+The repository already contains an early room service. Review its transaction boundaries, relationship validation, slug behavior, and playback-state initialization before changing it. Add missing tests first, then extend the existing service and web route/page to match the spec.
+
 **Files:**
 
-- Create: `packages/db/src/rooms.ts`
+- Inspect/modify: `packages/db/src/rooms.ts`
+- Create/modify: `packages/db/tests/rooms.test.ts`
 - Create: `apps/web/app/(admin)/admin/rooms/new/page.tsx`
 - Create: `apps/web/app/api/admin/rooms/route.ts`
 
@@ -487,7 +492,7 @@ Test that creating a room:
 - Creates initial `RoomPlaybackState` with `paused`, position `0`, rate `1`.
 - Returns a stable shareable `slug`.
 
-- [ ] **Step 2: Run tests to verify failure**
+- [ ] **Step 2: Run room tests against the current baseline**
 
 Run:
 
@@ -495,9 +500,9 @@ Run:
 pnpm --filter @workspace/db test -- rooms.test.ts
 ```
 
-Expected: FAIL before room service exists.
+Expected: tests should either pass or expose specific gaps in the existing room service. Use any failures to guide the implementation step.
 
-- [ ] **Step 3: Implement room service**
+- [ ] **Step 3: Review and complete room service**
 
 `createRoom({ animeId, episodeId })` should validate relationships and create room plus playback state in a transaction.
 
