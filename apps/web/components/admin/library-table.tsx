@@ -25,7 +25,7 @@ export function LibraryTable({ anime }: { anime: LibraryAnime[] }) {
   if (anime.length === 0) {
     return (
       <div className="border-y py-12 text-sm text-muted-foreground">
-        No media has been imported yet.
+        还没有导入任何媒体。
       </div>
     )
   }
@@ -34,11 +34,11 @@ export function LibraryTable({ anime }: { anime: LibraryAnime[] }) {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Anime</TableHead>
-          <TableHead>Episode</TableHead>
-          <TableHead>Format</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="text-right">Size</TableHead>
+          <TableHead>动漫</TableHead>
+          <TableHead>剧集</TableHead>
+          <TableHead>格式</TableHead>
+          <TableHead>状态</TableHead>
+          <TableHead className="text-right">大小</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -56,7 +56,7 @@ export function LibraryTable({ anime }: { anime: LibraryAnime[] }) {
             <TableCell>{episode.mimeType}</TableCell>
             <TableCell>
               <Badge variant={episode.playbackSupportStatus === "supported" ? "secondary" : "outline"}>
-                {episode.playbackSupportStatus === "supported" ? "Playable" : "Check format"}
+                {episode.playbackSupportStatus === "supported" ? "可播放" : "格式存疑"}
               </Badge>
             </TableCell>
             <TableCell className="text-right tabular-nums">
@@ -71,7 +71,7 @@ export function LibraryTable({ anime }: { anime: LibraryAnime[] }) {
 
 function formatBytes(value: bigint) {
   const bytes = Number(value)
-  if (!Number.isFinite(bytes)) return "Unknown"
+  if (!Number.isFinite(bytes)) return "未知"
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
   return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`

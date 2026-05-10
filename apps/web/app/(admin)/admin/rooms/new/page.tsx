@@ -26,16 +26,16 @@ export default async function NewRoomPage() {
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-10 px-6 py-8 lg:px-10">
         <header className="flex flex-col gap-6 border-b pb-8 sm:flex-row sm:items-end sm:justify-between">
           <div className="space-y-3">
-            <p className="text-sm font-medium text-muted-foreground">Watch room</p>
+            <p className="text-sm font-medium text-muted-foreground">观影房间</p>
             <div>
-              <h1 className="text-3xl font-semibold tracking-tight">Create a room</h1>
+              <h1 className="text-3xl font-semibold tracking-tight">创建房间</h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Choose the first episode. Everyone who opens the room link can watch, chat, and control playback.
+                选择起始剧集。打开房间链接的人都可以一起观看、聊天和控制播放。
               </p>
             </div>
           </div>
           <Button asChild variant="outline">
-            <Link href="/admin/library">Media library</Link>
+            <Link href="/admin/library">媒体库</Link>
           </Button>
         </header>
 
@@ -45,7 +45,7 @@ export default async function NewRoomPage() {
           </section>
         ) : (
           <section className="border-y py-12 text-sm text-muted-foreground">
-            Import at least one episode before creating a room.
+            请先导入至少一集后再创建房间。
           </section>
         )}
       </div>

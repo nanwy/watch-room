@@ -25,7 +25,7 @@ async function scanImports(passcode: string): Promise<ScanResult> {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null) as { error?: string } | null
-    throw new Error(payload?.error ?? "Scan failed")
+    throw new Error(payload?.error ?? "扫描失败")
   }
 
   return response.json() as Promise<ScanResult>
@@ -47,7 +47,7 @@ export function ImportScanButton() {
         <Input
           type="password"
           value={passcode}
-          placeholder="Admin passcode"
+          placeholder="管理员口令"
           autoComplete="current-password"
           onChange={(event) => setPasscode(event.target.value)}
           onKeyDown={(event) => {
@@ -58,7 +58,7 @@ export function ImportScanButton() {
         />
         <div className="mt-2 min-h-5 text-sm text-muted-foreground">
           {mutation.isSuccess
-            ? `Scanned ${mutation.data.candidates}; imported ${mutation.data.imported}, skipped ${mutation.data.skipped}.`
+            ? `扫描 ${mutation.data.candidates} 个；导入 ${mutation.data.imported}，跳过 ${mutation.data.skipped}。`
             : null}
           {mutation.isError ? mutation.error.message : null}
         </div>
@@ -69,7 +69,7 @@ export function ImportScanButton() {
         onClick={() => mutation.mutate(passcode)}
       >
         <RefreshCw className={mutation.isPending ? "animate-spin" : ""} />
-        Scan imports
+        扫描导入
       </Button>
     </div>
   )

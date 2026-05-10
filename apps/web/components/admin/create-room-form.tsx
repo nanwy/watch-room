@@ -48,7 +48,7 @@ async function createWatchRoom(input: {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null) as { error?: string } | null
-    throw new Error(payload?.error ?? "Room creation failed")
+    throw new Error(payload?.error ?? "创建房间失败")
   }
 
   return response.json() as Promise<CreatedRoom>
@@ -71,7 +71,7 @@ export function CreateRoomForm({ library }: { library: RoomLibrary }) {
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="space-y-2">
-          <span className="text-sm font-medium">Admin passcode</span>
+          <span className="text-sm font-medium">管理员口令</span>
           <Input
             type="password"
             value={passcode}
@@ -80,7 +80,7 @@ export function CreateRoomForm({ library }: { library: RoomLibrary }) {
           />
         </label>
         <label className="space-y-2">
-          <span className="text-sm font-medium">Anime</span>
+          <span className="text-sm font-medium">动漫</span>
           <NativeSelect
             className="w-full"
             value={animeId}
@@ -102,7 +102,7 @@ export function CreateRoomForm({ library }: { library: RoomLibrary }) {
       </div>
 
       <label className="space-y-2">
-        <span className="text-sm font-medium">Starting episode</span>
+        <span className="text-sm font-medium">起始剧集</span>
         <NativeSelect
           className="w-full"
           value={episodeId}
@@ -111,7 +111,7 @@ export function CreateRoomForm({ library }: { library: RoomLibrary }) {
             mutation.reset()
           }}
         >
-          <NativeSelectOptGroup label={selectedAnime?.title ?? "Episodes"}>
+          <NativeSelectOptGroup label={selectedAnime?.title ?? "剧集"}>
             {(selectedAnime?.episodes ?? []).map((episode) => (
               <NativeSelectOption key={episode.id} value={episode.id}>
                 {episode.episodeNumber ? `${episode.episodeNumber}. ` : ""}
@@ -137,7 +137,7 @@ export function CreateRoomForm({ library }: { library: RoomLibrary }) {
           onClick={() => mutation.mutate({ passcode, animeId, episodeId })}
         >
           <Clapperboard />
-          Create room
+          创建房间
         </Button>
       </div>
     </div>
