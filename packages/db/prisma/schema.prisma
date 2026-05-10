@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PlaybackStatus {
+  playing
+  paused
+}
+
+enum PlaybackSupportStatus {
+  supported
+  maybeUnsupported
+}
+
+model Anime {
+  id        String    @id @default(cuid())
+  title     String    @unique
+  episodes  Episode[]
+  rooms     Room[]
+  states    RoomPlaybackState[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Episode {
+  id                    String                @id @default(cuid())
+  animeId               String
+  anime                 Anime                 @relation(fields: [animeId], references: [id], onDelete: Cascade)
+  title                 String
+  episodeNumber         Int?
+  storagePath           String                @unique
+  mimeType              String
+  fileSizeBytes         BigInt
+  durationSeconds       Float?
+  playbackSupportStatus PlaybackSupportStatus @default(supported)
+  rooms                 Room[]
+  states                RoomPlaybackState[]
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  @@unique([animeId, title])
+  @@index([animeId])
+}
+
+model Room {
+  id               String             @id @default(cuid())
+  slug             String             @unique
+  currentAnimeId   String
+  currentEpisodeId String
+  currentAnime     Anime              @relation(fields: [currentAnimeId], references: [id])
+  currentEpisode   Episode            @relation(fields: [currentEpisodeId], references: [id])
+  playbackState    RoomPlaybackState?
+  chatMessages     ChatMessage[]
+  memberSessions   RoomMemberSession[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  lastActiveAt     DateTime           @default(now())
+}
+
+model RoomPlaybackState {
+  roomId            String         @id
+  room              Room           @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  animeId           String
+  episodeId         String
+  anime             Anime          @relation(fields: [animeId], references: [id])
+  episode           Episode        @relation(fields: [episodeId], references: [id])
+  status            PlaybackStatus @default(paused)
+  positionSeconds   Float          @default(0)
+  playbackRate      Float          @default(1)
+  updatedByClientId String?
+  updatedAt         DateTime       @updatedAt
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  clientId  String
+  nickname  String
+  body      String
+  createdAt DateTime @default(now())
+
+  @@index([roomId, createdAt])
+}
+
+model RoomMemberSession {
+  id             String    @id @default(cuid())
+  roomId         String
+  room           Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  clientId       String
+  nickname       String
+  socketId       String?
+  connectedAt    DateTime  @default(now())
+  lastSeenAt     DateTime  @default(now())
+  disconnectedAt DateTime?
+
+  @@index([roomId, disconnectedAt])
+  @@unique([roomId, clientId])
+}

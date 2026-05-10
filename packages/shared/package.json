@@ -1,0 +1,26 @@
+{
+  "name": "@workspace/shared",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.16"
+  },
+  "exports": {
+    "./playback": "./src/playback.ts",
+    "./events": "./src/events.ts",
+    "./validation": "./src/validation.ts"
+  }
+}

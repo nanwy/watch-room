@@ -1,0 +1,31 @@
+{
+  "name": "@workspace/db",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "@workspace/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.1.0",
+    "@workspace/eslint-config": "workspace:*",
+    "@workspace/typescript-config": "workspace:*",
+    "prisma": "^6.19.3",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.16"
+  },
+  "exports": {
+    "./client": "./src/client.ts",
+    "./media-scanner": "./src/media-scanner.ts",
+    "./rooms": "./src/rooms.ts"
+  }
+}
