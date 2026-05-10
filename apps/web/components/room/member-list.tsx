@@ -1,10 +1,8 @@
 "use client"
-import { useStore } from "zustand/react"
-
 import { useRoomStore } from "@/store/room-store"
 
 export function MemberList() {
-  const members = useStore(useRoomStore, (s) => s.members)
+  const members = useRoomStore((s) => s.members)
   return (
     <div className="space-y-2">
       <h2 className="text-sm font-semibold">在线（{members.length}）</h2>

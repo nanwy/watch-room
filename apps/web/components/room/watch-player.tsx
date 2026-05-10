@@ -1,6 +1,5 @@
 "use client"
 import { useEffect, useRef } from "react"
-import { useStore } from "zustand/react"
 
 import { calculateEffectivePosition } from "@workspace/shared/playback"
 
@@ -22,7 +21,7 @@ type Props = {
 
 export function WatchPlayer({ episodeId, episodeMimeType, onControl }: Props) {
   const ref = useRef<HTMLVideoElement>(null)
-  const playbackState = useStore(useRoomStore, (s) => s.playbackState)
+  const playbackState = useRoomStore((s) => s.playbackState)
   const suppressEvents = useRef(false)
 
   useEffect(() => {

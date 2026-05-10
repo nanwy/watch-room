@@ -1,4 +1,4 @@
-import { create, type StoreApi } from "zustand"
+import { create, type UseBoundStore, type StoreApi } from "zustand"
 
 export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "reconnecting"
 
@@ -48,7 +48,7 @@ type RoomStore = {
 
 const MAX_MESSAGES = 100
 
-export function createRoomStore(): StoreApi<RoomStore> {
+export function createRoomStore(): UseBoundStore<StoreApi<RoomStore>> {
   return create<RoomStore>((set) => ({
     connectionStatus: "disconnected",
     room: null,

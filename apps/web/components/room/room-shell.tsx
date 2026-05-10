@@ -1,6 +1,5 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
-import { useStore } from "zustand/react"
 
 import { JoinRoomForm } from "./join-room-form"
 import { ConnectionStatus } from "./connection-status"
@@ -18,12 +17,12 @@ export function RoomShell({ snapshot }: { snapshot: RoomSnapshot }) {
     typeof window === "undefined" ? null : window.localStorage.getItem("watch-room.nickname"),
   )
   const socketRef = useRef<Socket | null>(null)
-  const setRoomState = useStore(useRoomStore, (s) => s.setRoomState)
-  const setPlaybackState = useStore(useRoomStore, (s) => s.setPlaybackState)
-  const setMembers = useStore(useRoomStore, (s) => s.setMembers)
-  const setHistory = useStore(useRoomStore, (s) => s.setHistory)
-  const appendChat = useStore(useRoomStore, (s) => s.appendChat)
-  const setConnectionStatus = useStore(useRoomStore, (s) => s.setConnectionStatus)
+  const setRoomState = useRoomStore((s) => s.setRoomState)
+  const setPlaybackState = useRoomStore((s) => s.setPlaybackState)
+  const setMembers = useRoomStore((s) => s.setMembers)
+  const setHistory = useRoomStore((s) => s.setHistory)
+  const appendChat = useRoomStore((s) => s.appendChat)
+  const setConnectionStatus = useRoomStore((s) => s.setConnectionStatus)
 
   useEffect(() => { setRoomState(snapshot) }, [snapshot, setRoomState])
 

@@ -1,6 +1,4 @@
 "use client"
-import { useStore } from "zustand/react"
-
 import { useRoomStore } from "@/store/room-store"
 
 const LABELS = {
@@ -11,7 +9,7 @@ const LABELS = {
 } as const
 
 export function ConnectionStatus() {
-  const status = useStore(useRoomStore, (s) => s.connectionStatus)
+  const status = useRoomStore((s) => s.connectionStatus)
   if (status === "connected") return null
   return (
     <div className="rounded-md border bg-muted px-3 py-2 text-xs text-muted-foreground">
