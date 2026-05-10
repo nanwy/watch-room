@@ -14,11 +14,14 @@ COPY packages/typescript-config/package.json packages/typescript-config/
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
+ARG NEXT_PUBLIC_REALTIME_URL
+ENV NEXT_PUBLIC_REALTIME_URL=$NEXT_PUBLIC_REALTIME_URL
 COPY . .
 RUN pnpm --filter @workspace/db prisma generate
 RUN pnpm --filter web build
 
 FROM node:22-alpine AS runner
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app /app

@@ -12,6 +12,8 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_REALTIME_URL: ${PUBLIC_REALTIME_URL}
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://watch:watch@postgres:5432/watch_room

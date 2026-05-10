@@ -18,7 +18,7 @@ PUBLIC_WEB_ORIGIN=http://your.domain
 mkdir -p data/imports data/media
 docker compose build
 docker compose up -d
-docker compose exec web pnpm --filter @workspace/db prisma migrate deploy
+docker compose exec web pnpm --filter @workspace/db prisma db push
 ```
 
 ## Importing media

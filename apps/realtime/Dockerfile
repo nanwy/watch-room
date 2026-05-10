@@ -18,6 +18,7 @@ RUN pnpm --filter @workspace/db prisma generate
 RUN pnpm --filter realtime build
 
 FROM node:22-alpine AS runner
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app /app
