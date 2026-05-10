@@ -1,7 +1,13 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
-  "globalEnv": ["PORT", "WEB_ORIGIN"],
+  "globalEnv": [
+    "ADMIN_PASSCODE",
+    "MEDIA_IMPORT_DIR",
+    "MEDIA_STORAGE_DIR",
+    "PORT",
+    "WEB_ORIGIN"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
