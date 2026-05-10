@@ -55,6 +55,12 @@ describe("media scanner", () => {
 
     expect(firstResult).toEqual({ imported: 1, skipped: 0, conflicts: [] })
     expect(duplicateResult).toEqual({ imported: 0, skipped: 2, conflicts: [] })
+    expect(prisma.__animes).toEqual([
+      expect.objectContaining({
+        title: "Example Anime",
+        normalizedTitle: "example anime",
+      }),
+    ])
     expect(prisma.__episodes).toHaveLength(1)
   })
 
@@ -110,6 +116,7 @@ function makeImportPrisma(options: { failEpisodeCreate?: boolean } = {}) {
   }> = []
 
   const prisma = {
+    __animes: animes,
     __episodes: episodes,
     __lastStoragePath: "",
     anime: {
@@ -124,19 +131,17 @@ function makeImportPrisma(options: { failEpisodeCreate?: boolean } = {}) {
       },
     },
     episode: {
+      findUnique: async ({ where }: { where: { sourcePath: string } }) => {
+        return episodes.find((episode) => episode.sourcePath === where.sourcePath) ?? null
+      },
       findFirst: async ({ where }: {
         where: {
-          OR: Array<
-            { sourcePath: string } |
-            { animeId: string, normalizedTitle: string }
-          >
+          animeId: string
+          normalizedTitle: string
         }
       }) => {
-        return episodes.find((episode) => where.OR.some((condition) => {
-          if ("sourcePath" in condition) return episode.sourcePath === condition.sourcePath
-          return episode.animeId === condition.animeId
-            && episode.normalizedTitle === condition.normalizedTitle
-        })) ?? null
+        return episodes.find((episode) => episode.animeId === where.animeId
+          && episode.normalizedTitle === where.normalizedTitle) ?? null
       },
       create: async ({ data }: {
         data: {
@@ -157,6 +162,7 @@ function makeImportPrisma(options: { failEpisodeCreate?: boolean } = {}) {
   }
 
   return prisma as unknown as Parameters<typeof importCandidates>[2] & {
+    __animes: typeof animes
     __episodes: typeof episodes
     __lastStoragePath: string
   }

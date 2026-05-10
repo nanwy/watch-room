@@ -88,6 +88,15 @@ export async function importCandidates(
   for (const candidate of candidates) {
     const normalizedAnimeTitle = normalizeImportKey(candidate.animeTitle)
     const normalizedEpisodeTitle = normalizeImportKey(candidate.episodeTitle)
+    const existingSourceEpisode = await prisma.episode.findUnique({
+      where: { sourcePath: candidate.sourcePath },
+    })
+
+    if (existingSourceEpisode) {
+      result.skipped += 1
+      continue
+    }
+
     const existingAnime = await prisma.anime.findUnique({
       where: { normalizedTitle: normalizedAnimeTitle },
     })
@@ -100,13 +109,8 @@ export async function importCandidates(
 
     const existingEpisode = await prisma.episode.findFirst({
       where: {
-        OR: [
-          { sourcePath: candidate.sourcePath },
-          {
-            animeId: anime.id,
-            normalizedTitle: normalizedEpisodeTitle,
-          },
-        ],
+        animeId: anime.id,
+        normalizedTitle: normalizedEpisodeTitle,
       },
     })
 
