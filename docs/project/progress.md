@@ -166,7 +166,7 @@ The generated project has a clean baseline committed on this branch, with partia
 - [x] Review scanner/import boundaries, path handling, duplicate behavior, and storage semantics before marking Phase 2 complete.
 - [x] Add/verify media scanner tests.
 - [x] Add admin scan API protected by `ADMIN_PASSCODE`.
-- [ ] Build media library admin page with shadcn/ui.
+- [x] Build media library admin page with shadcn/ui.
 
 ### Phase 3: Room Creation
 
