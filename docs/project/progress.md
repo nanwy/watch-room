@@ -109,6 +109,7 @@ The generated project has a clean baseline committed on this branch, with partia
 - Domain baseline hardened:
   - Added focused shared playback and event validation tests.
   - Added focused media scanner/import tests for normalized duplicates and failed-write storage cleanup.
+  - Added compensation for newly created anime rows when media storage preparation fails.
   - Added focused room service tests for anime/episode consistency on room and playback updates.
   - Added persisted normalized import keys and source-path tracking to the Prisma schema.
 
