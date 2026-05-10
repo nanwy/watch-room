@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: watch
+      POSTGRES_PASSWORD: watch
+      POSTGRES_DB: watch_room
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://watch:watch@postgres:5432/watch_room
+      ADMIN_PASSCODE: ${ADMIN_PASSCODE}
+      MEDIA_IMPORT_DIR: /data/imports
+      MEDIA_STORAGE_DIR: /data/media
+      NEXT_PUBLIC_REALTIME_URL: ${PUBLIC_REALTIME_URL}
+      WEB_ORIGIN: ${PUBLIC_WEB_ORIGIN}
+    volumes:
+      - ./data/imports:/data/imports
+      - ./data/media:/data/media
+    depends_on:
+      - postgres
+  realtime:
+    build:
+      context: .
+      dockerfile: apps/realtime/Dockerfile
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://watch:watch@postgres:5432/watch_room
+      WEB_ORIGIN: ${PUBLIC_WEB_ORIGIN}
+      PORT: 4001
+    depends_on:
+      - postgres
+  proxy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      - web
+      - realtime
+
+volumes:
+  pgdata:
+  caddydata:
+  caddyconfig:
