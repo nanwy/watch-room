@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import type { createRoom } from "@workspace/db/rooms"
 
-import { createRoomRouteHandler } from "../app/api/admin/rooms/route"
+import { createRoomRouteHandler } from "../app/api/admin/rooms/handler"
 
 const ORIGINAL_ENV = process.env
 

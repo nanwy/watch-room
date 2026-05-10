@@ -4,7 +4,7 @@ import path from "node:path"
 
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 
-import { createMediaHandler } from "../app/api/media/[episodeId]/route"
+import { createMediaHandler } from "../app/api/media/[episodeId]/handler"
 
 let storageRoot = ""
 

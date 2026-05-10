@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 import type { importCandidates } from "@workspace/db/media-scanner"
 
-import { createImportScanHandler } from "../app/api/admin/import/scan/route"
+import { createImportScanHandler } from "../app/api/admin/import/scan/handler"
 
 const ORIGINAL_ENV = process.env
 

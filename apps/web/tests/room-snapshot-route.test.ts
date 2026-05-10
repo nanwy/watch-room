@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "vitest"
 
-import { createRoomSnapshotHandler } from "../app/api/rooms/[slug]/snapshot/route.js"
+import { createRoomSnapshotHandler } from "../app/api/rooms/[slug]/snapshot/handler.js"
 
 describe("GET /api/rooms/[slug]/snapshot", () => {
   test("returns 404 when slug is unknown", async () => {
