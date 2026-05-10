@@ -15,5 +15,9 @@ export default async function RoomPage({
   const { slug } = await params
   const snapshot = await getRoomSnapshot(getPrisma(), slug)
   if (!snapshot) notFound()
-  return <RoomShell snapshot={JSON.parse(JSON.stringify(snapshot))} />
+  return <RoomShell snapshot={JSON.parse(JSON.stringify(snapshot, bigintReplacer))} />
+}
+
+function bigintReplacer(_key: string, value: unknown) {
+  return typeof value === "bigint" ? value.toString() : value
 }
