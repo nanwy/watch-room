@@ -3,14 +3,15 @@ import { describe, expect, test, vi } from "vitest"
 import { broadcastMembersAfterDisconnect } from "../src/sessions.js"
 
 describe("broadcastMembersAfterDisconnect", () => {
-  test("emits room:members for each affected room slug", async () => {
+  test("persists disconnect and emits room:members for affected rooms", async () => {
     const emit = vi.fn()
+    const updateMany = vi.fn().mockResolvedValue({ count: 1 })
     const prisma = {
       roomMemberSession: {
         findMany: vi.fn().mockResolvedValueOnce([
           { roomId: "room-1", room: { slug: "abc-123" } },
         ]),
-        updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        updateMany,
       },
     } as never
 
@@ -19,6 +20,10 @@ describe("broadcastMembersAfterDisconnect", () => {
       getOnlineMembers: async () => [{ clientId: "c1", nickname: "n", socketId: null, lastSeenAt: new Date() }],
     })
 
+    expect(updateMany).toHaveBeenCalledWith({
+      where: { socketId: "socket-x", disconnectedAt: null },
+      data: expect.objectContaining({ socketId: null, disconnectedAt: expect.any(Date) }),
+    })
     expect(emit).toHaveBeenCalledWith("abc-123", "room:members", expect.any(Array))
   })
 })
