@@ -95,9 +95,11 @@ Use the generated shadcn monorepo structure as the baseline and add product file
 
 Keep shared business rules out of React components. Put event schemas and playback math in `packages/shared`, database access and scanner behavior in `packages/db`, and socket orchestration in `apps/realtime`.
 
-## Task 1: Bootstrap Workspace and Tooling
+## Task 1: Bootstrap Workspace and Tooling (Historical, Complete)
 
 This task is historical for this repository. The workspace was bootstrapped by `pnpm dlx shadcn@latest init`, not by manually creating the older package layout. Treat the checked-in generated files as the source of truth.
+
+All Task 1 checkbox steps are complete and retained only as bootstrap history. Do not execute them again.
 
 **Files:**
 
@@ -111,7 +113,7 @@ This task is historical for this repository. The workspace was bootstrapped by `
 - Create: `packages/db/package.json`
 - Create: `packages/shared/package.json`
 
-- [ ] **Step 1: Create the pnpm workspace files**
+- [x] **Step 1: Create the pnpm workspace files**
 
 Use these package boundaries:
 
@@ -142,7 +144,7 @@ packages:
   - "packages/*"
 ```
 
-- [ ] **Step 2: Add environment template**
+- [x] **Step 2: Add environment template**
 
 `.env.example` must include:
 
@@ -156,7 +158,7 @@ WEB_ORIGIN="http://localhost:3000"
 PORT="4001"
 ```
 
-- [ ] **Step 3: Install dependencies**
+- [x] **Step 3: Install dependencies**
 
 Run:
 
@@ -174,7 +176,7 @@ pnpm --filter web add -D tailwindcss postcss autoprefixer vitest @vitejs/plugin-
 
 Expected: lockfile is created and all workspace packages install.
 
-- [ ] **Step 4: Verify workspace scripts**
+- [x] **Step 4: Verify workspace scripts**
 
 Run:
 
@@ -184,14 +186,20 @@ pnpm -r typecheck
 
 Expected: the command may initially report no source files for empty packages; it must not fail because of malformed package configuration.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add package.json pnpm-workspace.yaml tsconfig.base.json .gitignore .env.example apps packages pnpm-lock.yaml
 git commit -m "chore: bootstrap watch room workspace"
 ```
 
+## Next Active Task: Phase 1 / Data and Shared Domain
+
+Continue with Task 2 as Phase 1 work. The next worker must validate and extend the existing `packages/db` and `packages/shared` code against the spec, not repeat bootstrap setup or blindly recreate files that already exist.
+
 ## Task 2: Add Prisma Schema and Shared Playback Rules
+
+Phase 1 starts here. Before adding or replacing code, inspect the existing Prisma schema, shared playback math, event schemas, and validation files, then extend them to match the design spec.
 
 **Files:**
 
