@@ -9,16 +9,7 @@ export async function createRoom(
     episodeId: string
   },
 ) {
-  const episode = await prisma.episode.findFirst({
-    where: {
-      id: input.episodeId,
-      animeId: input.animeId,
-    },
-  })
-
-  if (!episode) {
-    throw new Error("Episode does not exist for the selected anime.")
-  }
+  await assertEpisodeBelongsToAnime(prisma, input)
 
   const slug = await createUniqueRoomSlug(prisma)
 
@@ -41,6 +32,73 @@ export async function createRoom(
       currentAnime: true,
       currentEpisode: true,
       playbackState: true,
+    },
+  })
+}
+
+export async function assertEpisodeBelongsToAnime(
+  prisma: DbClient,
+  input: {
+    animeId: string
+    episodeId: string
+  },
+) {
+  const episode = await prisma.episode.findFirst({
+    where: {
+      id: input.episodeId,
+      animeId: input.animeId,
+    },
+  })
+
+  if (!episode) {
+    throw new Error("Episode does not exist for the selected anime.")
+  }
+
+  return episode
+}
+
+export async function updateRoomSelection(
+  prisma: DbClient,
+  input: {
+    roomId: string
+    animeId: string
+    episodeId: string
+  },
+) {
+  await assertEpisodeBelongsToAnime(prisma, input)
+
+  return prisma.room.update({
+    where: { id: input.roomId },
+    data: {
+      currentAnimeId: input.animeId,
+      currentEpisodeId: input.episodeId,
+    },
+  })
+}
+
+export async function updateRoomPlaybackState(
+  prisma: DbClient,
+  input: {
+    roomId: string
+    animeId: string
+    episodeId: string
+    status: "playing" | "paused"
+    positionSeconds: number
+    playbackRate: number
+    updatedByClientId?: string | null
+  },
+) {
+  await assertEpisodeBelongsToAnime(prisma, input)
+
+  return prisma.roomPlaybackState.update({
+    where: { roomId: input.roomId },
+    data: {
+      animeId: input.animeId,
+      episodeId: input.episodeId,
+      status: input.status,
+      positionSeconds: input.positionSeconds,
+      playbackRate: input.playbackRate,
+      updatedByClientId: input.updatedByClientId ?? null,
     },
   })
 }

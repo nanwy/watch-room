@@ -18,13 +18,14 @@ enum PlaybackSupportStatus {
 }
 
 model Anime {
-  id        String    @id @default(cuid())
-  title     String    @unique
-  episodes  Episode[]
-  rooms     Room[]
-  states    RoomPlaybackState[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id              String    @id @default(cuid())
+  title           String
+  normalizedTitle String    @unique
+  episodes        Episode[]
+  rooms           Room[]
+  states          RoomPlaybackState[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model Episode {
@@ -32,7 +33,9 @@ model Episode {
   animeId               String
   anime                 Anime                 @relation(fields: [animeId], references: [id], onDelete: Cascade)
   title                 String
+  normalizedTitle       String
   episodeNumber         Int?
+  sourcePath            String                @unique
   storagePath           String                @unique
   mimeType              String
   fileSizeBytes         BigInt
@@ -43,7 +46,7 @@ model Episode {
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
 
-  @@unique([animeId, title])
+  @@unique([animeId, normalizedTitle])
   @@index([animeId])
 }
 

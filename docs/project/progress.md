@@ -1,6 +1,6 @@
 # Watch Room Progress
 
-Last updated: 2026-05-10 17:07 CST
+Last updated: 2026-05-10 18:10 CST
 
 ## Current Status
 
@@ -69,6 +69,8 @@ The generated project has a clean baseline committed on this branch, with partia
   - `packages/db/src/media-scanner.ts` implements early scanner/import behavior.
   - `packages/db/src/rooms.ts` implements early room creation and snapshot behavior.
 - This existing domain code still needs focused tests and review before Phase 1/2/3 are marked complete.
+- Media import duplicate detection now persists normalized anime and episode keys plus source paths, so duplicate checks survive separate scan/import runs.
+- Room anime/episode consistency is enforced through `packages/db/src/rooms.ts` service helpers for room creation, room selection updates, and playback-state updates. Direct Prisma writes can still bypass this invariant until a later migration adds schema-level composite relations.
 
 ## Timeline
 
@@ -104,6 +106,11 @@ The generated project has a clean baseline committed on this branch, with partia
   - `pnpm install`, `pnpm typecheck`, and `pnpm lint` verified.
 - Baseline state corrected:
   - Existing Prisma schema, shared playback/event code, media scanner, and room service code are now tracked as partial Phase 1/2/3 progress instead of ignored baseline contents.
+- Domain baseline hardened:
+  - Added focused shared playback and event validation tests.
+  - Added focused media scanner/import tests for normalized duplicates and failed-write storage cleanup.
+  - Added focused room service tests for anime/episode consistency on room and playback updates.
+  - Added persisted normalized import keys and source-path tracking to the Prisma schema.
 
 ## Todo
 
@@ -133,7 +140,9 @@ The generated project has a clean baseline committed on this branch, with partia
   - `RoomPlaybackState`
   - `ChatMessage`
   - `RoomMemberSession`
-- [ ] Review/finalize Prisma schema against the design spec and migration expectations.
+- [x] Review/finalize Prisma schema against the design spec and migration expectations:
+  - Normalized anime/episode import keys and source-path uniqueness added for duplicate prevention.
+  - Room/playback anime/episode consistency documented as a service-level invariant for now.
 - [x] Generate Prisma client successfully.
 - [x] Add shared playback math:
   - effective position calculation
@@ -142,8 +151,8 @@ The generated project has a clean baseline committed on this branch, with partia
   - room join
   - chat message
   - playback controls
-- [ ] Add/verify unit tests for playback math and validation.
-- [ ] Review shared schema/event exports for realtime and web API compatibility.
+- [x] Add/verify unit tests for playback math and validation.
+- [x] Review shared schema/event exports for realtime and web API compatibility.
 
 ### Phase 2: Media Library
 
@@ -153,8 +162,8 @@ The generated project has a clean baseline committed on this branch, with partia
 - [x] Detect episode number from filenames when possible.
 - [x] Skip unsupported files.
 - [x] Prevent duplicate anime/episode imports.
-- [ ] Review scanner/import boundaries, path handling, duplicate behavior, and storage semantics before marking Phase 2 complete.
-- [ ] Add/verify media scanner tests.
+- [x] Review scanner/import boundaries, path handling, duplicate behavior, and storage semantics before marking Phase 2 complete.
+- [x] Add/verify media scanner tests.
 - [ ] Add admin scan API protected by `ADMIN_PASSCODE`.
 - [ ] Build media library admin page with shadcn/ui.
 
@@ -162,8 +171,8 @@ The generated project has a clean baseline committed on this branch, with partia
 
 - [x] Add early room creation service.
 - [x] Create room with initial paused playback state.
-- [ ] Review room service boundaries, snapshot shape, slug behavior, and transaction assumptions before marking Phase 3 complete.
-- [ ] Add/verify room service tests.
+- [x] Review room service boundaries, snapshot shape, slug behavior, and transaction assumptions before marking Phase 3 complete.
+- [x] Add/verify room service tests.
 - [ ] Add admin room creation API.
 - [ ] Build room creation page using TanStack Query mutations.
 - [ ] Display shareable room URL.

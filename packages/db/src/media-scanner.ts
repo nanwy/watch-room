@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { mkdir, readdir, stat, link, copyFile } from "node:fs/promises"
+import { mkdir, readdir, stat, link, copyFile, unlink } from "node:fs/promises"
 import path from "node:path"
 
 import type { DbClient } from "./client.js"
@@ -50,7 +50,7 @@ export async function discoverImportCandidates(importDir: string) {
       if (!SUPPORTED_EXTENSIONS.has(extension)) continue
 
       const episodeTitle = path.basename(fileEntry.name, extension).trim()
-      const key = `${normalizeKey(animeTitle)}:${normalizeKey(episodeTitle)}`
+      const key = `${normalizeImportKey(animeTitle)}:${normalizeImportKey(episodeTitle)}`
       if (seenKeys.has(key)) continue
       seenKeys.add(key)
 
@@ -86,15 +86,27 @@ export async function importCandidates(
   const result: ImportResult = { imported: 0, skipped: 0, conflicts: [] }
 
   for (const candidate of candidates) {
-    const existingAnime = await prisma.anime.findUnique({ where: { title: candidate.animeTitle } })
-    const anime = existingAnime ?? await prisma.anime.create({ data: { title: candidate.animeTitle } })
+    const normalizedAnimeTitle = normalizeImportKey(candidate.animeTitle)
+    const normalizedEpisodeTitle = normalizeImportKey(candidate.episodeTitle)
+    const existingAnime = await prisma.anime.findUnique({
+      where: { normalizedTitle: normalizedAnimeTitle },
+    })
+    const anime = existingAnime ?? await prisma.anime.create({
+      data: {
+        title: candidate.animeTitle.trim(),
+        normalizedTitle: normalizedAnimeTitle,
+      },
+    })
 
-    const existingEpisode = await prisma.episode.findUnique({
+    const existingEpisode = await prisma.episode.findFirst({
       where: {
-        animeId_title: {
-          animeId: anime.id,
-          title: candidate.episodeTitle,
-        },
+        OR: [
+          { sourcePath: candidate.sourcePath },
+          {
+            animeId: anime.id,
+            normalizedTitle: normalizedEpisodeTitle,
+          },
+        ],
       },
     })
 
@@ -107,23 +119,35 @@ export async function importCandidates(
     await mkdir(animeDir, { recursive: true })
     const storagePath = path.join(animeDir, `episode_${randomUUID()}${candidate.extension}`)
 
+    let storageCreated = false
     try {
       await link(candidate.sourcePath, storagePath)
+      storageCreated = true
     } catch {
       await copyFile(candidate.sourcePath, storagePath)
+      storageCreated = true
     }
 
-    await prisma.episode.create({
-      data: {
-        animeId: anime.id,
-        title: candidate.episodeTitle,
-        episodeNumber: candidate.episodeNumber,
-        storagePath,
-        mimeType: candidate.mimeType,
-        fileSizeBytes: candidate.fileSizeBytes,
-        playbackSupportStatus: candidate.playbackSupportStatus,
-      },
-    })
+    try {
+      await prisma.episode.create({
+        data: {
+          animeId: anime.id,
+          title: candidate.episodeTitle.trim(),
+          normalizedTitle: normalizedEpisodeTitle,
+          episodeNumber: candidate.episodeNumber,
+          sourcePath: candidate.sourcePath,
+          storagePath,
+          mimeType: candidate.mimeType,
+          fileSizeBytes: candidate.fileSizeBytes,
+          playbackSupportStatus: candidate.playbackSupportStatus,
+        },
+      })
+    } catch (error) {
+      if (storageCreated) {
+        await unlink(storagePath).catch(() => undefined)
+      }
+      throw error
+    }
 
     result.imported += 1
   }
@@ -139,6 +163,6 @@ function parseEpisodeNumber(title: string) {
   return firstNumber?.[0] ? Number.parseInt(firstNumber[0], 10) : null
 }
 
-function normalizeKey(value: string) {
+export function normalizeImportKey(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ")
 }
