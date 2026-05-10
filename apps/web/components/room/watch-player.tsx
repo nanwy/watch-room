@@ -99,6 +99,10 @@ export function WatchPlayer({ episodeId, episodeMimeType, playbackSupportStatus,
       <video
         ref={ref}
         controls
+        playsInline
+        disablePictureInPicture
+        disableRemotePlayback
+        controlsList="nofullscreen noremoteplayback"
         preload="metadata"
         className="aspect-video w-full bg-black"
         onPlay={() => {

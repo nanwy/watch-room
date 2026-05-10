@@ -31,6 +31,7 @@ test("two browsers join, chat, and sync playback", async ({ browser, request }) 
 
   await expect(a.getByText("Alice")).toBeVisible()
   await expect(a.getByText("Bob")).toBeVisible()
+  await expect(a.locator("video")).toHaveAttribute("playsinline", "")
 
   await a.locator("input[placeholder='说点什么']").fill("hello from alice")
   await a.getByRole("button", { name: "发送" }).click()

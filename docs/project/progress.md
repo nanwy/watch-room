@@ -1,6 +1,6 @@
 # Watch Room Progress
 
-Last updated: 2026-05-10 20:10 CST
+Last updated: 2026-05-10 20:45 CST
 
 ## Current Status
 
@@ -258,3 +258,4 @@ Phases 4–7 implementation work is complete. Phase 8 acceptance work that requi
 - UI copy across admin and room surfaces now Chinese-first.
 - Docker Compose deployment files added: per-app Dockerfiles, `docker-compose.yml`, `docker/Caddyfile`, deployment notes.
 - Playwright E2E scaffolding added (`apps/web/e2e/`); requires running services and an MP4 to execute.
+- Mobile Safari playback behavior adjusted: the room video now opts into inline playback and hides supported native fullscreen/PiP/remote-playback controls to avoid iOS forcing system fullscreen on play.
