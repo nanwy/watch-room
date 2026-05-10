@@ -4,6 +4,8 @@
 
 **Goal:** Build a private Next.js 16 watch room app with a central anime media library, synchronized multi-user playback, no-login nickname entry, and persistent realtime chat.
 
+**Current Baseline Note:** The shadcn-generated monorepo already contains partial data/shared/scanner/room service code: Prisma product models in `packages/db/prisma/schema.prisma`, shared playback math and event schemas in `packages/shared/src`, early media scanner/import behavior in `packages/db/src/media-scanner.ts`, and early room creation/snapshot behavior in `packages/db/src/rooms.ts`. Future tasks must inspect and extend this code instead of blindly recreating or overwriting it.
+
 **Architecture:** Use a pnpm workspace with `apps/web` for Next.js 16, `apps/realtime` for a dedicated Socket.IO Node service, `packages/db` for Prisma schema/client, and `packages/shared` for shared validation/types. PostgreSQL persists media metadata, rooms, playback state, chat messages, and member sessions; video files stay on a mounted VPS directory and are scanned into the library from `/data/imports`.
 
 **Tech Stack:** Next.js 16 App Router, React, shadcn/ui, Tailwind CSS, Zustand, TanStack Query, Socket.IO, PostgreSQL, Prisma, Zod, Vitest, Playwright, Docker Compose, Caddy.

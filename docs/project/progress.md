@@ -6,7 +6,7 @@ Last updated: 2026-05-10 17:07 CST
 
 The product requirements are confirmed. The project has been created as a shadcn/ui monorepo with a Next.js 16 web app, shared UI package, database package, shared types package, and realtime service package.
 
-Phase 0 baseline cleanup is complete at the bootstrap/infrastructure level. Core product features are not complete yet.
+Phase 0 baseline cleanup is complete. The committed baseline also already contains partial product-domain work in the data/shared layers and early database services. Treat that code as existing Phase 1/2/3 work that needs validation and review, not as pending work to recreate.
 
 Current branch: `codex/watch-room`
 
@@ -54,7 +54,7 @@ The project currently contains:
 - `docs/superpowers/specs/2026-05-10-watch-room-design.md`: approved design spec.
 - `docs/superpowers/plans/2026-05-10-watch-room.md`: initial implementation plan.
 
-The generated project has a clean baseline ready for commit on this branch.
+The generated project has a clean baseline committed on this branch, with partial product-domain artifacts already present.
 
 ## Known Technical Issues
 
@@ -62,7 +62,13 @@ The generated project has a clean baseline ready for commit on this branch.
 - `pnpm typecheck` passes across the workspace.
 - `pnpm lint` passes across the workspace.
 - The previous plan used package names like `@watch-room/*`; the plan has been updated so future work follows the generated `@workspace/*`, `web`, and `realtime` package names.
-- Product features are still intentionally unimplemented after Phase 0.
+- Product-domain code already exists in the baseline:
+  - `packages/db/prisma/schema.prisma` defines `Anime`, `Episode`, `Room`, `RoomPlaybackState`, `ChatMessage`, and `RoomMemberSession`.
+  - `packages/shared/src/playback.ts` implements playback position and drift helper logic.
+  - `packages/shared/src/events.ts` implements room join, chat message, and playback control schemas.
+  - `packages/db/src/media-scanner.ts` implements early scanner/import behavior.
+  - `packages/db/src/rooms.ts` implements early room creation and snapshot behavior.
+- This existing domain code still needs focused tests and review before Phase 1/2/3 are marked complete.
 
 ## Timeline
 
@@ -96,6 +102,8 @@ The generated project has a clean baseline ready for commit on this branch.
   - Root flat ESLint config added for non-UI packages.
   - Generated shadcn UI typecheck issues fixed.
   - `pnpm install`, `pnpm typecheck`, and `pnpm lint` verified.
+- Baseline state corrected:
+  - Existing Prisma schema, shared playback/event code, media scanner, and room service code are now tracked as partial Phase 1/2/3 progress instead of ignored baseline contents.
 
 ## Todo
 
@@ -118,38 +126,44 @@ The generated project has a clean baseline ready for commit on this branch.
 
 ### Phase 1: Data and Shared Domain
 
-- [ ] Finalize Prisma schema for:
+- [x] Add initial Prisma schema for:
   - `Anime`
   - `Episode`
   - `Room`
   - `RoomPlaybackState`
   - `ChatMessage`
   - `RoomMemberSession`
-- [ ] Generate Prisma client successfully.
-- [ ] Add shared playback math:
+- [ ] Review/finalize Prisma schema against the design spec and migration expectations.
+- [x] Generate Prisma client successfully.
+- [x] Add shared playback math:
   - effective position calculation
   - drift correction threshold
-- [ ] Add shared Zod schemas for:
+- [x] Add shared Zod schemas for:
   - room join
   - chat message
   - playback controls
-- [ ] Add unit tests for playback math and validation.
+- [ ] Add/verify unit tests for playback math and validation.
+- [ ] Review shared schema/event exports for realtime and web API compatibility.
 
 ### Phase 2: Media Library
 
-- [ ] Implement server folder scanner.
-- [ ] Parse anime from first-level folder names.
-- [ ] Parse episodes from supported video files.
-- [ ] Detect episode number from filenames when possible.
-- [ ] Skip unsupported files.
-- [ ] Prevent duplicate anime/episode imports.
+- [x] Add early server folder scanner/import implementation.
+- [x] Parse anime from first-level folder names.
+- [x] Parse episodes from supported video files.
+- [x] Detect episode number from filenames when possible.
+- [x] Skip unsupported files.
+- [x] Prevent duplicate anime/episode imports.
+- [ ] Review scanner/import boundaries, path handling, duplicate behavior, and storage semantics before marking Phase 2 complete.
+- [ ] Add/verify media scanner tests.
 - [ ] Add admin scan API protected by `ADMIN_PASSCODE`.
 - [ ] Build media library admin page with shadcn/ui.
 
 ### Phase 3: Room Creation
 
-- [ ] Build room creation service.
-- [ ] Create room with initial paused playback state.
+- [x] Add early room creation service.
+- [x] Create room with initial paused playback state.
+- [ ] Review room service boundaries, snapshot shape, slug behavior, and transaction assumptions before marking Phase 3 complete.
+- [ ] Add/verify room service tests.
 - [ ] Add admin room creation API.
 - [ ] Build room creation page using TanStack Query mutations.
 - [ ] Display shareable room URL.
@@ -216,4 +230,4 @@ The generated project has a clean baseline ready for commit on this branch.
 
 ## Immediate Next Step
 
-The next engineering step is Phase 1: Data and Shared Domain.
+The next engineering step is Phase 1 validation: add or verify tests for the existing data/shared domain code, then review the early media scanner and room service boundaries so later Phase 2/3 work extends the current implementation instead of recreating it.
