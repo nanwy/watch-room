@@ -70,6 +70,7 @@ export function RoomShell({ snapshot }: { snapshot: RoomSnapshot }) {
         <ConnectionStatus />
         <WatchPlayer
           episodeId={snapshot.currentEpisode.id}
+          playbackSupportStatus={snapshot.currentEpisode.playbackSupportStatus}
           onControl={(event) => {
             socketRef.current?.emit("playback:control", {
               roomSlug: snapshot.slug,
