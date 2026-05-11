@@ -8,7 +8,10 @@ import {
   PopoverTrigger,
 } from "@workspace/ui/components/popover"
 
-import { shouldCaptureTouchTap } from "./player-controls-behavior"
+import {
+  getFullscreenAction,
+  shouldCaptureTouchTap,
+} from "./player-controls-behavior"
 
 const SPEED_OPTIONS = [0.75, 1, 1.5, 2] as const
 const HIDE_DELAY_MS = 2500
@@ -22,6 +25,10 @@ type Props = {
    * the center overlay shows a "同步" hint so the user knows clicking play will catch up.
    */
   expectedPlaying?: boolean
+}
+
+type WebKitFullscreenVideo = HTMLVideoElement & {
+  webkitEnterFullscreen?: () => void
 }
 
 function formatTime(t: number) {
@@ -182,6 +189,32 @@ export function PlayerControls({
     }
   }, [videoRef])
 
+  const toggleFullscreen = useCallback(() => {
+    const el = containerRef.current
+    const video = videoRef.current as WebKitFullscreenVideo | null
+    const action = getFullscreenAction({
+      isDocumentFullscreen: Boolean(document.fullscreenElement),
+      canRequestContainerFullscreen: Boolean(el?.requestFullscreen),
+      canEnterWebKitVideoFullscreen: Boolean(video?.webkitEnterFullscreen),
+    })
+
+    switch (action) {
+      case "exitDocumentFullscreen":
+        void document.exitFullscreen?.()
+        break
+      case "requestContainerFullscreen":
+        void el?.requestFullscreen?.().catch(() => {
+          video?.webkitEnterFullscreen?.()
+        })
+        break
+      case "enterWebKitVideoFullscreen":
+        video?.webkitEnterFullscreen?.()
+        break
+      case "none":
+        break
+    }
+  }, [containerRef, videoRef])
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const t = document.activeElement as HTMLElement | null
@@ -222,11 +255,7 @@ export function PlayerControls({
           break
         case "f":
         case "F": {
-          const el = containerRef.current
-          if (!el) return
-          if (!document.fullscreenElement)
-            void el.requestFullscreen?.().catch(() => {})
-          else void document.exitFullscreen?.()
+          toggleFullscreen()
           break
         }
         case "m":
@@ -237,14 +266,23 @@ export function PlayerControls({
     }
     document.addEventListener("keydown", onKey)
     return () => document.removeEventListener("keydown", onKey)
-  }, [videoRef, containerRef])
+  }, [videoRef, toggleFullscreen])
 
   useEffect(() => {
     const onChange = () =>
       setIsFullscreen(document.fullscreenElement === containerRef.current)
+    const onWebKitBeginFullscreen = () => setIsFullscreen(true)
+    const onWebKitEndFullscreen = () => setIsFullscreen(false)
+    const video = videoRef.current
     document.addEventListener("fullscreenchange", onChange)
-    return () => document.removeEventListener("fullscreenchange", onChange)
-  }, [containerRef])
+    video?.addEventListener("webkitbeginfullscreen", onWebKitBeginFullscreen)
+    video?.addEventListener("webkitendfullscreen", onWebKitEndFullscreen)
+    return () => {
+      document.removeEventListener("fullscreenchange", onChange)
+      video?.removeEventListener("webkitbeginfullscreen", onWebKitBeginFullscreen)
+      video?.removeEventListener("webkitendfullscreen", onWebKitEndFullscreen)
+    }
+  }, [containerRef, videoRef])
 
   useEffect(() => {
     const c = containerRef.current
@@ -305,14 +343,6 @@ export function PlayerControls({
     const v = videoRef.current
     if (!v) return
     v.playbackRate = r
-  }
-
-  function toggleFullscreen() {
-    const el = containerRef.current
-    if (!el) return
-    if (!document.fullscreenElement)
-      void el.requestFullscreen?.().catch(() => {})
-    else void document.exitFullscreen?.()
   }
 
   function pctFromClientX(clientX: number) {

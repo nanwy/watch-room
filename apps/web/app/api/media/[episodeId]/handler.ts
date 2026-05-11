@@ -22,31 +22,94 @@ const defaultDeps: MediaDeps = {
   getPrismaClient: getPrisma,
 }
 
+function isRemoteUrl(value: string) {
+  try {
+    const url = new URL(value)
+    return url.protocol === "http:" || url.protocol === "https:"
+  } catch {
+    return false
+  }
+}
+
+function trimSlashes(value: string) {
+  return value.replace(/^\/+|\/+$/g, "")
+}
+
+function toAccelRedirectPath(prefix: string, relativePath: string) {
+  const normalizedRelative = relativePath.split(path.sep).join("/")
+  const encodedRelative = normalizedRelative
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/")
+  return `/${trimSlashes(prefix)}/${encodedRelative}`
+}
+
+function resolveLocalMedia(
+  filePath: string,
+  storageRoot: string,
+  accelPrefix?: string,
+) {
+  const absoluteStorage = path.resolve(storageRoot)
+  const absoluteFile = path.resolve(filePath)
+  if (!absoluteFile.startsWith(absoluteStorage + path.sep) && absoluteFile !== absoluteStorage) {
+    return null
+  }
+
+  const relativePath = path.relative(absoluteStorage, absoluteFile)
+  return {
+    absoluteFile,
+    accelRedirectPath: accelPrefix ? toAccelRedirectPath(accelPrefix, relativePath) : null,
+  }
+}
+
 export function createMediaHandler(deps: MediaDeps = defaultDeps) {
   return async function handler(
     request: Request,
     context: { params: Promise<{ episodeId: string }> },
   ) {
     const { episodeId } = await context.params
-    const storageRoot = deps.getEnv("MEDIA_STORAGE_DIR")
-    if (!storageRoot) {
-      return Response.json({ error: "Media storage not configured" }, { status: 500 })
-    }
-
     const episode = await deps.findEpisode(deps.getPrismaClient(), episodeId)
     if (!episode) {
       return Response.json({ error: "Not found" }, { status: 404 })
     }
 
-    const absoluteStorage = path.resolve(storageRoot)
-    const absoluteFile = path.resolve(episode.storagePath)
-    if (!absoluteFile.startsWith(absoluteStorage + path.sep) && absoluteFile !== absoluteStorage) {
+    if (isRemoteUrl(episode.storagePath)) {
+      return Response.redirect(episode.storagePath, 302)
+    }
+
+    const mediaStorageRoot = deps.getEnv("MEDIA_STORAGE_DIR")
+    if (!mediaStorageRoot) {
+      return Response.json({ error: "Media storage not configured" }, { status: 500 })
+    }
+
+    const hlsStorageRoot = deps.getEnv("MEDIA_HLS_DIR")
+    const hlsAccelPrefix = deps.getEnv("MEDIA_HLS_ACCEL_REDIRECT_PREFIX")
+    const mediaAccelPrefix = deps.getEnv("MEDIA_ACCEL_REDIRECT_PREFIX")
+    const resolved =
+      hlsStorageRoot && hlsAccelPrefix
+        ? resolveLocalMedia(episode.storagePath, hlsStorageRoot, hlsAccelPrefix)
+          ?? resolveLocalMedia(episode.storagePath, mediaStorageRoot, mediaAccelPrefix)
+        : resolveLocalMedia(episode.storagePath, mediaStorageRoot, mediaAccelPrefix)
+
+    if (!resolved) {
       return Response.json({ error: "Not found" }, { status: 404 })
+    }
+
+    if (resolved.accelRedirectPath) {
+      return new Response(null, {
+        status: 200,
+        headers: {
+          "x-accel-redirect": resolved.accelRedirectPath,
+          "content-type": episode.mimeType,
+          "accept-ranges": "bytes",
+          "cache-control": "private, max-age=3600",
+        },
+      })
     }
 
     let stat
     try {
-      stat = statSync(absoluteFile)
+      stat = statSync(resolved.absoluteFile)
     } catch {
       return Response.json({ error: "Not found" }, { status: 404 })
     }
@@ -54,7 +117,7 @@ export function createMediaHandler(deps: MediaDeps = defaultDeps) {
     const totalSize = stat.size
     const rangeHeader = request.headers.get("range")
     if (!rangeHeader) {
-      const stream = Readable.toWeb(createReadStream(absoluteFile)) as ReadableStream
+      const stream = Readable.toWeb(createReadStream(resolved.absoluteFile)) as ReadableStream
       return new Response(stream, {
         status: 200,
         headers: {
@@ -76,7 +139,7 @@ export function createMediaHandler(deps: MediaDeps = defaultDeps) {
       return new Response(null, { status: 416, headers: { "content-range": `bytes */${totalSize}` } })
     }
 
-    const stream = Readable.toWeb(createReadStream(absoluteFile, { start, end })) as ReadableStream
+    const stream = Readable.toWeb(createReadStream(resolved.absoluteFile, { start, end })) as ReadableStream
     return new Response(stream, {
       status: 206,
       headers: {
