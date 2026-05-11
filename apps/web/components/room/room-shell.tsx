@@ -97,6 +97,7 @@ export function RoomShell({ snapshot }: { snapshot: RoomSnapshot }) {
           <WatchPlayer
             episodeId={liveRoom.currentEpisode.id}
             playbackSupportStatus={liveRoom.currentEpisode.playbackSupportStatus}
+            clientId={clientId}
             onControl={(event) => {
               socketRef.current?.emit("playback:control", {
                 roomSlug: liveRoom.slug,

@@ -10,6 +10,12 @@ const HIDE_DELAY_MS = 2500
 type Props = {
   videoRef: RefObject<HTMLVideoElement | null>
   containerRef: RefObject<HTMLDivElement | null>
+  /**
+   * Whether the room's authoritative state says we should be playing.
+   * When this is true but the local video is paused (autoplay block, buffer error, etc.),
+   * the center overlay shows a "同步" hint so the user knows clicking play will catch up.
+   */
+  expectedPlaying?: boolean
 }
 
 function formatTime(t: number) {
@@ -22,7 +28,7 @@ function formatTime(t: number) {
   return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`
 }
 
-export function PlayerControls({ videoRef, containerRef }: Props) {
+export function PlayerControls({ videoRef, containerRef, expectedPlaying = false }: Props) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -32,10 +38,31 @@ export function PlayerControls({ videoRef, containerRef }: Props) {
   const [playbackRate, setPlaybackRate] = useState(1)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [visible, setVisible] = useState(true)
+  const [volumeHover, setVolumeHover] = useState(false)
   const [dragPct, setDragPct] = useState<number | null>(null)
+  const [hoverPct, setHoverPct] = useState<number | null>(null)
+  const [isBuffering, setIsBuffering] = useState(false)
   const progressRef = useRef<HTMLDivElement>(null)
   const hideTimerRef = useRef<number | null>(null)
-  const dragVersionRef = useRef(0)
+  const isPressedRef = useRef(false)
+  const dragCleanupRef = useRef<(() => void) | null>(null)
+  const volumeHideTimerRef = useRef<number | null>(null)
+
+  function showVolumeSlider() {
+    if (volumeHideTimerRef.current) {
+      window.clearTimeout(volumeHideTimerRef.current)
+      volumeHideTimerRef.current = null
+    }
+    setVolumeHover(true)
+  }
+  function scheduleHideVolumeSlider() {
+    if (volumeHideTimerRef.current) window.clearTimeout(volumeHideTimerRef.current)
+    volumeHideTimerRef.current = window.setTimeout(() => setVolumeHover(false), 200)
+  }
+
+  useEffect(() => () => {
+    dragCleanupRef.current?.()
+  }, [])
 
   useEffect(() => {
     const video = videoRef.current
@@ -64,6 +91,13 @@ export function PlayerControls({ videoRef, containerRef }: Props) {
       setMuted(video.muted)
     }
     const onRate = () => setPlaybackRate(video.playbackRate)
+    const onWaiting = () => setIsBuffering(true)
+    const onCanPlay = () => setIsBuffering(false)
+    const onPlaying = () => setIsBuffering(false)
+    const onSeekingEv = () => setIsBuffering(true)
+    const onSeekedEv = () => {
+      if (video.readyState >= 3) setIsBuffering(false)
+    }
 
     video.addEventListener("play", onPlay)
     video.addEventListener("pause", onPause)
@@ -73,6 +107,11 @@ export function PlayerControls({ videoRef, containerRef }: Props) {
     video.addEventListener("progress", onProg)
     video.addEventListener("volumechange", onVol)
     video.addEventListener("ratechange", onRate)
+    video.addEventListener("waiting", onWaiting)
+    video.addEventListener("canplay", onCanPlay)
+    video.addEventListener("playing", onPlaying)
+    video.addEventListener("seeking", onSeekingEv)
+    video.addEventListener("seeked", onSeekedEv)
 
     return () => {
       video.removeEventListener("play", onPlay)
@@ -83,8 +122,60 @@ export function PlayerControls({ videoRef, containerRef }: Props) {
       video.removeEventListener("progress", onProg)
       video.removeEventListener("volumechange", onVol)
       video.removeEventListener("ratechange", onRate)
+      video.removeEventListener("waiting", onWaiting)
+      video.removeEventListener("canplay", onCanPlay)
+      video.removeEventListener("playing", onPlaying)
+      video.removeEventListener("seeking", onSeekingEv)
+      video.removeEventListener("seeked", onSeekedEv)
     }
   }, [videoRef])
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const t = document.activeElement as HTMLElement | null
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return
+      const v = videoRef.current
+      if (!v) return
+      switch (e.key) {
+        case " ":
+          e.preventDefault()
+          if (v.paused) void v.play().catch(() => {})
+          else v.pause()
+          break
+        case "ArrowLeft":
+          e.preventDefault()
+          v.currentTime = Math.max(0, v.currentTime - 5)
+          break
+        case "ArrowRight":
+          e.preventDefault()
+          v.currentTime = Math.min(isFinite(v.duration) ? v.duration : Infinity, v.currentTime + 5)
+          break
+        case "ArrowUp":
+          e.preventDefault()
+          v.volume = Math.min(1, v.volume + 0.05)
+          if (v.muted) v.muted = false
+          break
+        case "ArrowDown":
+          e.preventDefault()
+          v.volume = Math.max(0, v.volume - 0.05)
+          break
+        case "f":
+        case "F": {
+          const el = containerRef.current
+          if (!el) return
+          if (!document.fullscreenElement) void el.requestFullscreen?.().catch(() => {})
+          else void document.exitFullscreen?.()
+          break
+        }
+        case "m":
+        case "M":
+          v.muted = !v.muted
+          break
+      }
+    }
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [videoRef, containerRef])
 
   useEffect(() => {
     const onChange = () => setIsFullscreen(document.fullscreenElement === containerRef.current)
@@ -153,31 +244,45 @@ export function PlayerControls({ videoRef, containerRef }: Props) {
     else void document.exitFullscreen?.()
   }
 
-  function pctFromPointer(e: React.PointerEvent<HTMLDivElement>) {
+  function pctFromClientX(clientX: number) {
     const rect = progressRef.current?.getBoundingClientRect()
-    if (!rect) return null
-    return Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+    if (!rect || rect.width === 0) return null
+    return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
   }
 
   function onProgressDown(e: React.PointerEvent<HTMLDivElement>) {
-    const pct = pctFromPointer(e)
+    const pct = pctFromClientX(e.clientX)
     if (pct == null) return
-    dragVersionRef.current += 1
+    dragCleanupRef.current?.()
+    isPressedRef.current = true
     setDragPct(pct)
-    e.currentTarget.setPointerCapture(e.pointerId)
-  }
-  function onProgressMove(e: React.PointerEvent<HTMLDivElement>) {
-    if (dragPct == null) return
-    const pct = pctFromPointer(e)
-    if (pct != null) setDragPct(pct)
-  }
-  function onProgressUp(e: React.PointerEvent<HTMLDivElement>) {
-    if (dragPct == null) return
-    const pct = pctFromPointer(e) ?? dragPct
-    const v = videoRef.current
-    if (v && duration > 0) v.currentTime = pct * duration
-    setDragPct(null)
-    try { e.currentTarget.releasePointerCapture(e.pointerId) } catch {}
+
+    const onMove = (ev: PointerEvent) => {
+      const p = pctFromClientX(ev.clientX)
+      if (p != null) setDragPct(p)
+    }
+    const finish = (commitClientX: number | null) => {
+      isPressedRef.current = false
+      const p = commitClientX != null ? pctFromClientX(commitClientX) : null
+      const v = videoRef.current
+      const dur = v?.duration
+      if (v && dur != null && isFinite(dur) && dur > 0 && p != null) {
+        const newTime = p * dur
+        v.currentTime = newTime
+        setCurrentTime(newTime)
+      }
+      setDragPct(null)
+      document.removeEventListener("pointermove", onMove)
+      document.removeEventListener("pointerup", onUp)
+      document.removeEventListener("pointercancel", onCancel)
+      dragCleanupRef.current = null
+    }
+    const onUp = (ev: PointerEvent) => finish(ev.clientX)
+    const onCancel = () => finish(null)
+    dragCleanupRef.current = () => finish(null)
+    document.addEventListener("pointermove", onMove)
+    document.addEventListener("pointerup", onUp)
+    document.addEventListener("pointercancel", onCancel)
   }
 
   const progressPct = duration > 0
@@ -185,9 +290,40 @@ export function PlayerControls({ videoRef, containerRef }: Props) {
     : 0
   const bufferedPct = duration > 0 ? Math.min(1, buffered / duration) : 0
   const displayTime = duration > 0 && dragPct != null ? dragPct * duration : currentTime
+  const previewPct = dragPct != null ? dragPct : hoverPct
   const speedLabel = playbackRate === 1 ? "倍速" : `${playbackRate}x`
 
   return (
+    <>
+      {isBuffering ? (
+        <div className="pointer-events-none absolute top-1/2 left-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
+          <div className="flex items-center gap-2 rounded-md bg-black/65 px-3 py-2 text-sm text-white backdrop-blur-sm">
+            <span className="inline-block size-4 animate-spin rounded-full border-2 border-white/30 border-t-[var(--bilibili-pink)]" />
+            <span>缓冲中…</span>
+          </div>
+        </div>
+      ) : null}
+      {!isPlaying && !isBuffering ? (
+        <div className="absolute top-1/2 left-1/2 z-20 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={togglePlay}
+            aria-label={expectedPlaying ? "同步至房间进度并播放" : "播放"}
+            className="transition-transform duration-200 hover:scale-110 active:scale-95"
+          >
+            <img
+              src="https://s1.hdslb.com/bfs/static/player/img/play.svg"
+              alt=""
+              className="size-16 drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)] sm:size-20"
+            />
+          </button>
+          {expectedPlaying ? (
+            <p className="rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+              同步
+            </p>
+          ) : null}
+        </div>
+      ) : null}
     <div
       onClick={(e) => e.stopPropagation()}
       className={`pointer-events-auto absolute inset-x-0 bottom-0 z-20 select-none bg-gradient-to-t from-black/85 via-black/55 to-transparent px-3 pt-10 pb-2 text-white transition-opacity duration-200 sm:px-4 sm:pt-12 sm:pb-3 ${
@@ -197,23 +333,36 @@ export function PlayerControls({ videoRef, containerRef }: Props) {
       <div
         ref={progressRef}
         onPointerDown={onProgressDown}
-        onPointerMove={onProgressMove}
-        onPointerUp={onProgressUp}
-        onPointerCancel={onProgressUp}
-        className="group relative h-2 cursor-pointer touch-none rounded-full bg-white/20"
+        onPointerMove={(e) => {
+          if (isPressedRef.current) return
+          const p = pctFromClientX(e.clientX)
+          if (p != null) setHoverPct(p)
+        }}
+        onPointerLeave={() => setHoverPct(null)}
+        className="group relative -my-2 flex h-6 cursor-pointer touch-none items-center"
       >
-        <div
-          className="absolute inset-y-0 left-0 rounded-full bg-white/35"
-          style={{ width: `${bufferedPct * 100}%` }}
-        />
-        <div
-          className="absolute inset-y-0 left-0 rounded-full bg-[var(--bilibili-pink)]"
-          style={{ width: `${progressPct * 100}%` }}
-        />
-        <div
-          className="absolute top-1/2 size-3.5 -translate-y-1/2 rounded-full bg-[var(--bilibili-pink)] shadow-[0_0_8px_oklch(0.71_0.18_358/0.6)] opacity-0 transition-opacity group-hover:opacity-100"
-          style={{ left: `calc(${progressPct * 100}% - 7px)`, opacity: dragPct != null ? 1 : undefined }}
-        />
+        <div className="relative h-1.5 w-full rounded-full bg-white/20 transition-[height] duration-150 group-hover:h-2.5">
+          <div
+            className="absolute inset-y-0 left-0 rounded-full bg-white/35"
+            style={{ width: `${bufferedPct * 100}%` }}
+          />
+          <div
+            className="absolute inset-y-0 left-0 rounded-full bg-[var(--bilibili-pink)]"
+            style={{ width: `${progressPct * 100}%` }}
+          />
+          <div
+            className="absolute top-1/2 size-3.5 -translate-y-1/2 rounded-full bg-[var(--bilibili-pink)] shadow-[0_0_8px_oklch(0.71_0.18_358/0.6)] opacity-0 transition-opacity group-hover:opacity-100"
+            style={{ left: `calc(${progressPct * 100}% - 7px)`, opacity: dragPct != null ? 1 : undefined }}
+          />
+        </div>
+        {previewPct != null && duration > 0 ? (
+          <div
+            className="pointer-events-none absolute bottom-full mb-2 -translate-x-1/2 rounded bg-black/85 px-2 py-1 font-mono text-[11px] whitespace-nowrap text-white"
+            style={{ left: `${previewPct * 100}%` }}
+          >
+            {formatTime(previewPct * duration)}
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-2 flex items-center gap-2 sm:gap-3">
@@ -232,29 +381,31 @@ export function PlayerControls({ videoRef, containerRef }: Props) {
 
         <div className="flex-1" />
 
-        <Popover>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              onClick={toggleMute}
-              aria-label="音量"
-              className="rounded p-1 transition-colors hover:text-[var(--bilibili-pink)]"
-            >
-              {muted || volume === 0 ? <VolumeMuteIcon /> : volume < 0.5 ? <VolumeLowIcon /> : <VolumeHighIcon />}
-            </button>
-          </PopoverTrigger>
-          <PopoverContent
-            side="top"
-            align="center"
-            sideOffset={6}
-            className="hidden w-auto rounded-md border-[var(--ink-border)] bg-[oklch(0.11_0.04_340/0.95)] p-3 backdrop-blur-md sm:block"
+        <div
+          className="relative flex items-center"
+          onPointerEnter={showVolumeSlider}
+          onPointerLeave={scheduleHideVolumeSlider}
+        >
+          <button
+            type="button"
+            onClick={toggleMute}
+            aria-label={muted ? "取消静音" : "静音"}
+            className="rounded p-1 transition-colors hover:text-[var(--bilibili-pink)]"
           >
-            <VerticalVolume
-              value={muted ? 0 : volume}
-              onChange={setVolumeLevel}
-            />
-          </PopoverContent>
-        </Popover>
+            {muted || volume === 0 ? <VolumeMuteIcon /> : volume < 0.5 ? <VolumeLowIcon /> : <VolumeHighIcon />}
+          </button>
+          {volumeHover ? (
+            <div
+              onPointerEnter={showVolumeSlider}
+              onPointerLeave={scheduleHideVolumeSlider}
+              className="absolute bottom-full left-1/2 hidden -translate-x-1/2 pb-2 sm:block"
+            >
+              <div className="rounded-md border border-[var(--ink-border)] bg-[oklch(0.11_0.04_340/0.95)] p-3 backdrop-blur-md">
+                <VerticalVolume value={muted ? 0 : volume} onChange={setVolumeLevel} />
+              </div>
+            </div>
+          ) : null}
+        </div>
 
         <Popover>
           <PopoverTrigger asChild>
@@ -304,6 +455,7 @@ export function PlayerControls({ videoRef, containerRef }: Props) {
         </button>
       </div>
     </div>
+    </>
   )
 }
 
