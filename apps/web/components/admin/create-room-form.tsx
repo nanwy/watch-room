@@ -8,10 +8,14 @@ import { useMemo, useState } from "react"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
 import {
-  NativeSelect,
-  NativeSelectOptGroup,
-  NativeSelectOption,
-} from "@workspace/ui/components/native-select"
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select"
 
 type RoomLibrary = Array<{
   id: string
@@ -81,45 +85,53 @@ export function CreateRoomForm({ library }: { library: RoomLibrary }) {
         </label>
         <label className="space-y-2">
           <span className="text-sm font-medium">动漫</span>
-          <NativeSelect
-            className="w-full"
+          <Select
             value={animeId}
-            onChange={(event) => {
-              const nextAnimeId = event.target.value
+            onValueChange={(nextAnimeId) => {
               const nextAnime = library.find((anime) => anime.id === nextAnimeId)
               setAnimeId(nextAnimeId)
               setEpisodeId(nextAnime?.episodes[0]?.id ?? "")
               mutation.reset()
             }}
           >
-            {library.map((anime) => (
-              <NativeSelectOption key={anime.id} value={anime.id}>
-                {anime.title}
-              </NativeSelectOption>
-            ))}
-          </NativeSelect>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="选择动漫" />
+            </SelectTrigger>
+            <SelectContent>
+              {library.map((anime) => (
+                <SelectItem key={anime.id} value={anime.id}>
+                  {anime.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </label>
       </div>
 
       <label className="space-y-2">
         <span className="text-sm font-medium">起始剧集</span>
-        <NativeSelect
-          className="w-full"
+        <Select
           value={episodeId}
-          onChange={(event) => {
-            setEpisodeId(event.target.value)
+          onValueChange={(nextEpisodeId) => {
+            setEpisodeId(nextEpisodeId)
             mutation.reset()
           }}
         >
-          <NativeSelectOptGroup label={selectedAnime?.title ?? "剧集"}>
-            {(selectedAnime?.episodes ?? []).map((episode) => (
-              <NativeSelectOption key={episode.id} value={episode.id}>
-                {episode.episodeNumber ? `${episode.episodeNumber}. ` : ""}
-                {episode.title}
-              </NativeSelectOption>
-            ))}
-          </NativeSelectOptGroup>
-        </NativeSelect>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="选择起始剧集" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectLabel>{selectedAnime?.title ?? "剧集"}</SelectLabel>
+              {(selectedAnime?.episodes ?? []).map((episode) => (
+                <SelectItem key={episode.id} value={episode.id}>
+                  {episode.episodeNumber ? `${episode.episodeNumber}. ` : ""}
+                  {episode.title}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </label>
 
       <div className="flex flex-col gap-3 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">

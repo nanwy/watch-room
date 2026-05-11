@@ -18,7 +18,19 @@ export default async function LibraryPage() {
     },
   })
 
-  const episodeCount = anime.reduce((total, item) => total + item.episodes.length, 0)
+  const library = anime.map((item) => ({
+    id: item.id,
+    title: item.title,
+    episodes: item.episodes.map((episode) => ({
+      id: episode.id,
+      title: episode.title,
+      episodeNumber: episode.episodeNumber,
+      mimeType: episode.mimeType,
+      playbackSupportStatus: episode.playbackSupportStatus,
+      fileSizeBytes: episode.fileSizeBytes.toString(),
+    })),
+  }))
+  const episodeCount = library.reduce((total, item) => total + item.episodes.length, 0)
 
   return (
     <main className="min-h-svh bg-background text-foreground">
@@ -35,7 +47,7 @@ export default async function LibraryPage() {
           </div>
           <div className="grid grid-cols-2 gap-6 text-sm">
             <div>
-              <div className="text-2xl font-semibold tabular-nums">{anime.length}</div>
+              <div className="text-2xl font-semibold tabular-nums">{library.length}</div>
               <div className="text-muted-foreground">动漫</div>
             </div>
             <div>
@@ -60,7 +72,7 @@ export default async function LibraryPage() {
             <h2 className="text-base font-medium">已导入剧集</h2>
             <span className="text-sm text-muted-foreground">共 {episodeCount} 集</span>
           </div>
-          <LibraryTable anime={anime} />
+          <LibraryTable anime={library} />
         </section>
       </div>
     </main>

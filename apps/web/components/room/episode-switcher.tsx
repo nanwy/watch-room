@@ -2,6 +2,13 @@
 import { useQuery } from "@tanstack/react-query"
 
 import type { PlaybackControlInput } from "@workspace/shared/events"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select"
 
 import { useRoomStore } from "@/store/room-store"
 
@@ -37,11 +44,10 @@ export function EpisodeSwitcher({
     <div className="flex flex-wrap gap-3 text-sm">
       <label className="flex items-center gap-2">
         <span className="text-muted-foreground">动漫</span>
-        <select
-          className="rounded-md border bg-background px-2 py-1"
+        <Select
           value={room.currentAnime.id}
-          onChange={(event) => {
-            const next = animeOptions.find((a) => a.id === event.target.value)
+          onValueChange={(nextAnimeId) => {
+            const next = animeOptions.find((a) => a.id === nextAnimeId)
             const firstEpisode = next?.episodes[0]
             if (!next || !firstEpisode) return
             onSwitch({
@@ -52,31 +58,40 @@ export function EpisodeSwitcher({
             })
           }}
         >
-          {animeOptions.map((a) => (
-            <option key={a.id} value={a.id}>{a.title}</option>
-          ))}
-        </select>
+          <SelectTrigger className="w-48" size="sm">
+            <SelectValue placeholder="选择动漫" />
+          </SelectTrigger>
+          <SelectContent>
+            {animeOptions.map((a) => (
+              <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </label>
       <label className="flex items-center gap-2">
         <span className="text-muted-foreground">剧集</span>
-        <select
-          className="rounded-md border bg-background px-2 py-1"
+        <Select
           value={room.currentEpisode.id}
-          onChange={(event) => {
+          onValueChange={(nextEpisodeId) => {
             onSwitch({
               type: "switchEpisode",
               roomSlug, clientId,
               animeId: currentAnime.id,
-              episodeId: event.target.value,
+              episodeId: nextEpisodeId,
             })
           }}
         >
-          {currentAnime.episodes.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.episodeNumber !== null ? `${String(e.episodeNumber).padStart(2, "0")}. ` : ""}{e.title}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-64" size="sm">
+            <SelectValue placeholder="选择剧集" />
+          </SelectTrigger>
+          <SelectContent>
+            {currentAnime.episodes.map((e) => (
+              <SelectItem key={e.id} value={e.id}>
+                {e.episodeNumber !== null ? `${String(e.episodeNumber).padStart(2, "0")}. ` : ""}{e.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </label>
     </div>
   )
