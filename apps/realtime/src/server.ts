@@ -1,12 +1,19 @@
 import { createServer } from "node:http"
 
 import { getPrisma } from "@workspace/db/client"
+import { getRoomSnapshot } from "@workspace/db/rooms"
 import { Server } from "socket.io"
 
 import { sendChatMessage } from "./chat.js"
 import { env } from "./env.js"
 import { applyPlaybackControl } from "./playback.js"
 import { broadcastMembersAfterDisconnect, getOnlineMembers, joinRoomSession } from "./sessions.js"
+
+function serializeForSocket<T>(value: T): T {
+  return JSON.parse(
+    JSON.stringify(value, (_key, val) => (typeof val === "bigint" ? val.toString() : val)),
+  ) as T
+}
 
 const httpServer = createServer()
 const io = new Server(httpServer, {
@@ -49,7 +56,11 @@ io.on("connection", (socket) => {
   socket.on("playback:control", async (payload, ack) => {
     try {
       const state = await applyPlaybackControl(prisma, payload)
-      io.to(payload.roomSlug).emit("playback:state", state)
+      io.to(payload.roomSlug).emit("playback:state", serializeForSocket(state))
+      if (payload.type === "switchAnime" || payload.type === "switchEpisode") {
+        const snapshot = await getRoomSnapshot(prisma, payload.roomSlug)
+        if (snapshot) io.to(payload.roomSlug).emit("room:state", serializeForSocket(snapshot))
+      }
       ack?.({ ok: true })
     } catch (error) {
       ack?.({ ok: false, error: error instanceof Error ? error.message : "Playback update failed" })

@@ -130,3 +130,98 @@
     @apply font-sans;
     }
 }
+
+/* B-station raw tokens live at :root so portal-rendered content (Popover, Sheet, Dialog
+   via Radix Portal) can still resolve them outside the .b-station subtree. */
+:root {
+    --bilibili-pink: oklch(0.71 0.18 358);
+    --bilibili-pink-deep: oklch(0.58 0.21 0);
+    --bilibili-pink-glow: oklch(0.71 0.18 358 / 0.18);
+    --bilibili-cyan: oklch(0.69 0.13 226);
+    --bilibili-cyan-deep: oklch(0.55 0.13 226);
+    --danwei-yellow: oklch(0.82 0.16 90);
+    --ink-night: oklch(0.16 0.012 340);
+    --ink-deeper: oklch(0.11 0.012 340);
+    --ink-surface: oklch(0.22 0.012 340);
+    --ink-surface-hover: oklch(0.26 0.013 340);
+    --ink-border: oklch(0.32 0.012 340);
+    --mist-100: oklch(0.97 0.005 340);
+    --mist-300: oklch(0.82 0.008 340);
+    --mist-500: oklch(0.62 0.012 340);
+    --online-green: oklch(0.78 0.16 150);
+}
+
+/* B-station theme scope for 放映室 (watch room). Maps raw tokens to shadcn semantic vars.
+   The bilibili tiled pattern is the page-wide background; selected surfaces use
+   semi-transparent fills so the mascot tiles peek through. */
+.b-station {
+    background-color: var(--ink-night);
+    background-image: url('//s1.hdslb.com/bfs/static/ogv/theatre/web/watch-together/assets/fullloading-bg.png');
+    background-repeat: repeat;
+
+    --background: var(--ink-night);
+    --foreground: var(--mist-100);
+    --card: var(--ink-surface);
+    --card-foreground: var(--mist-100);
+    --popover: var(--ink-surface);
+    --popover-foreground: var(--mist-100);
+    --primary: var(--bilibili-pink);
+    --primary-foreground: var(--mist-100);
+    --secondary: var(--ink-surface);
+    --secondary-foreground: var(--mist-100);
+    --muted: var(--ink-deeper);
+    --muted-foreground: var(--mist-500);
+    --accent: var(--bilibili-cyan);
+    --accent-foreground: var(--mist-100);
+    --border: var(--ink-border);
+    --input: var(--ink-deeper);
+    --ring: var(--bilibili-cyan);
+
+    color: var(--mist-100);
+    background-color: var(--ink-night);
+    font-family: 'MiSans', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Inter, system-ui, sans-serif;
+}
+
+/* Semi-transparent surface variants so the page pattern peeks through.
+   Chroma is bumped (0.05-0.07) so the warm beige pattern, mixed with this dark layer,
+   reads as pink-tinted dusk instead of muddy yellow-brown. */
+.b-station .b-surface-translucent {
+    background-color: oklch(0.22 0.06 340 / 0.45);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.b-station .b-surface-translucent-deep {
+    background-color: oklch(0.14 0.05 340 / 0.4);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+.b-station .b-surface-translucent-input {
+    background-color: oklch(0.10 0.04 340 / 0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+/* Pink glow pulse used by self-bubble in chat, primary buttons hover. */
+@keyframes b-station-pink-pulse {
+    0% { background-color: var(--bilibili-pink-glow); }
+    100% { background-color: transparent; }
+}
+.b-station-self-pulse {
+    animation: b-station-pink-pulse 400ms cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Mascot TV bob for empty/loading state. */
+@keyframes b-station-bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+}
+.b-station-bob {
+    animation: b-station-bob 2s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .b-station-self-pulse,
+    .b-station-bob {
+        animation: none;
+    }
+}

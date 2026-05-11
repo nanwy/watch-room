@@ -3,13 +3,14 @@ import { useEffect, useRef, useState } from "react"
 
 import { calculateEffectivePosition } from "@workspace/shared/playback"
 
+import { TvMascot } from "./tv-mascot"
 import { mediaUrl } from "@/lib/media-url"
 import { useRoomStore } from "@/store/room-store"
 
 const DRIFT_THRESHOLD_SECONDS = 1.5
-const PROGRAMMATIC_WINDOW_MS = 600
 const LOCAL_CONTROL_CONFIRM_MS = 3500
 const SEEK_SUPPRESS_MS = 800
+const PROGRAMMATIC_SEEK_TARGET_EPSILON = 0.5
 
 type Props = {
   episodeId: string
@@ -26,14 +27,11 @@ type Props = {
 export function WatchPlayer({ episodeId, episodeMimeType, playbackSupportStatus, onControl }: Props) {
   const ref = useRef<HTMLVideoElement>(null)
   const playbackState = useRoomStore((s) => s.playbackState)
-  const programmaticUntilRef = useRef(0)
+  const isSwitching = useRoomStore((s) => s.isSwitching)
   const localControlUntilRef = useRef(0)
   const seekSuppressUntilRef = useRef(0)
+  const programmaticSeekTargetRef = useRef<number | null>(null)
   const [error, setError] = useState<string | null>(null)
-
-  function isProgrammatic() {
-    return Date.now() < programmaticUntilRef.current
-  }
 
   function isSeekInProgress() {
     return Date.now() < seekSuppressUntilRef.current
@@ -43,9 +41,15 @@ export function WatchPlayer({ episodeId, episodeMimeType, playbackSupportStatus,
     seekSuppressUntilRef.current = Date.now() + SEEK_SUPPRESS_MS
   }
 
-  function withProgrammatic(fn: () => void) {
-    programmaticUntilRef.current = Date.now() + PROGRAMMATIC_WINDOW_MS
-    fn()
+  function setVideoTimeProgrammatically(video: HTMLVideoElement, target: number) {
+    programmaticSeekTargetRef.current = target
+    video.currentTime = target
+  }
+
+  function isProgrammaticSeekEcho(video: HTMLVideoElement) {
+    const target = programmaticSeekTargetRef.current
+    if (target === null) return false
+    return Math.abs(video.currentTime - target) < PROGRAMMATIC_SEEK_TARGET_EPSILON
   }
 
   function markLocalControlPending() {
@@ -75,19 +79,17 @@ export function WatchPlayer({ episodeId, episodeMimeType, playbackSupportStatus,
 
     if (shouldDeferRemoteCorrection(video, target)) return
 
-    withProgrammatic(() => {
-      if (Math.abs(video.currentTime - target) > DRIFT_THRESHOLD_SECONDS) {
-        video.currentTime = target
-      }
-      if (Math.abs(video.playbackRate - playbackState.playbackRate) > 0.001) {
-        video.playbackRate = playbackState.playbackRate
-      }
-      if (playbackState.status === "playing" && video.paused) {
-        void video.play().catch(() => {})
-      } else if (playbackState.status === "paused" && !video.paused) {
-        video.pause()
-      }
-    })
+    if (Math.abs(video.currentTime - target) > DRIFT_THRESHOLD_SECONDS) {
+      setVideoTimeProgrammatically(video, target)
+    }
+    if (Math.abs(video.playbackRate - playbackState.playbackRate) > 0.001) {
+      video.playbackRate = playbackState.playbackRate
+    }
+    if (playbackState.status === "playing" && video.paused) {
+      void video.play().catch(() => {})
+    } else if (playbackState.status === "paused" && !video.paused) {
+      video.pause()
+    }
   }, [playbackState])
 
   useEffect(() => {
@@ -104,37 +106,38 @@ export function WatchPlayer({ episodeId, episodeMimeType, playbackSupportStatus,
       })
       if (shouldDeferRemoteCorrection(video, expected)) return
       if (Math.abs(video.currentTime - expected) > DRIFT_THRESHOLD_SECONDS) {
-        withProgrammatic(() => {
-          video.currentTime = expected
-        })
+        setVideoTimeProgrammatically(video, expected)
       }
     }, 2000)
     return () => window.clearInterval(id)
   }, [])
 
   const banner = playbackSupportStatus === "maybeUnsupported" ? (
-    <div className="rounded-md border bg-yellow-50 px-3 py-2 text-xs text-yellow-900">
-      该格式可能在你的浏览器中无法播放，建议使用 MP4 或 WebM。
+    <div className="rounded-md border border-[var(--danwei-yellow)]/40 bg-[oklch(0.30_0.06_90)] px-3 py-2 text-xs text-[var(--danwei-yellow)]">
+      ⚠️ 该格式可能在你的浏览器里跑不动，推荐 MP4 或 WebM。
     </div>
   ) : null
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2 lg:h-full lg:min-h-0">
       {error ? (
-        <div className="rounded-md border bg-red-50 px-3 py-2 text-xs text-red-900">{error}</div>
+        <div className="flex items-center gap-3 rounded-lg border border-[var(--ink-border)] bg-[var(--ink-surface)] px-3 py-2 text-xs text-[var(--mist-300)]">
+          <TvMascot size={32} bob />
+          <span>{error}（鸽了，下次一定）</span>
+        </div>
       ) : null}
       {banner}
-      <video
-        ref={ref}
-        controls
-        playsInline
-        disablePictureInPicture
-        disableRemotePlayback
-        controlsList="nofullscreen noremoteplayback"
-        preload="metadata"
-        className="aspect-video w-full bg-black"
+      <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black lg:aspect-auto lg:h-full lg:min-h-0 lg:flex-1">
+        <video
+          ref={ref}
+          controls
+          playsInline
+          disablePictureInPicture
+          disableRemotePlayback
+          controlsList="nofullscreen noremoteplayback"
+          preload="metadata"
+          className="h-full w-full object-contain"
         onPlay={() => {
-          if (isProgrammatic()) return
           if (isSeekInProgress()) return
           const state = useRoomStore.getState().playbackState
           if (state?.status === "playing") return
@@ -142,7 +145,7 @@ export function WatchPlayer({ episodeId, episodeMimeType, playbackSupportStatus,
           onControl({ type: "play", positionSeconds: ref.current?.currentTime ?? 0 })
         }}
         onPause={() => {
-          if (isProgrammatic() || !ref.current) return
+          if (!ref.current) return
           if (ref.current.seeking || isSeekInProgress()) return
           if (ref.current.ended) return
           const state = useRoomStore.getState().playbackState
@@ -151,11 +154,14 @@ export function WatchPlayer({ episodeId, episodeMimeType, playbackSupportStatus,
           onControl({ type: "pause", positionSeconds: ref.current.currentTime })
         }}
         onSeeking={() => {
-          if (isProgrammatic()) return
           markSeekActivity()
         }}
         onSeeked={() => {
-          if (isProgrammatic() || !ref.current) return
+          if (!ref.current) return
+          if (isProgrammaticSeekEcho(ref.current)) {
+            programmaticSeekTargetRef.current = null
+            return
+          }
           markSeekActivity()
           const state = useRoomStore.getState().playbackState
           if (!state) return
@@ -171,16 +177,23 @@ export function WatchPlayer({ episodeId, episodeMimeType, playbackSupportStatus,
           onControl({ type: "seek", positionSeconds: ref.current.currentTime })
         }}
         onRateChange={() => {
-          if (isProgrammatic() || !ref.current) return
+          if (!ref.current) return
           const state = useRoomStore.getState().playbackState
           if (state && Math.abs(state.playbackRate - ref.current.playbackRate) < 0.001) return
           markLocalControlPending()
           onControl({ type: "setPlaybackRate", positionSeconds: ref.current.currentTime, playbackRate: ref.current.playbackRate })
         }}
-        onError={() => setError("无法播放该剧集，文件可能缺失或格式不受支持。")}
+        onError={() => setError("视频出错了，可能文件缺失或格式不支持")}
       >
         <source src={mediaUrl(episodeId)} type={episodeMimeType ?? undefined} />
       </video>
+      {isSwitching ? (
+        <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-[oklch(0.10_0.04_340/0.7)] backdrop-blur-sm">
+          <TvMascot size={56} bob />
+          <p className="text-sm font-medium text-[var(--mist-100)]">正在切换…前方高能</p>
+        </div>
+      ) : null}
+      </div>
     </div>
   )
 }

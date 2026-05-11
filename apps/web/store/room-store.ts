@@ -38,6 +38,7 @@ type RoomStore = {
   playbackState: PlaybackState | null
   members: Member[]
   messages: ChatMessage[]
+  isSwitching: boolean
   setConnectionStatus: (s: ConnectionStatus) => void
   setRoomState: (room: RoomSnapshot) => void
   setPlaybackState: (state: PlaybackState) => void
@@ -45,6 +46,7 @@ type RoomStore = {
   setHistory: (messages: ChatMessage[]) => void
   appendChat: (message: ChatMessage) => void
   reconcileChat: (incoming: ChatMessage) => void
+  setIsSwitching: (v: boolean) => void
 }
 
 const MAX_MESSAGES = 100
@@ -56,13 +58,15 @@ export function createRoomStore(): UseBoundStore<StoreApi<RoomStore>> {
     playbackState: null,
     members: [],
     messages: [],
+    isSwitching: false,
     setConnectionStatus: (s) => set({ connectionStatus: s }),
-    setRoomState: (room) => set({ room, playbackState: room.playbackState ?? null }),
+    setRoomState: (room) => set({ room, playbackState: room.playbackState ?? null, isSwitching: false }),
     setPlaybackState: (state) => set({ playbackState: state }),
     setMembers: (members) => set({ members }),
     setHistory: (messages) => set({ messages: messages.slice(-MAX_MESSAGES) }),
     appendChat: (message) =>
       set((s) => ({ messages: [...s.messages, message].slice(-MAX_MESSAGES) })),
+    setIsSwitching: (v) => set({ isSwitching: v }),
     reconcileChat: (incoming) =>
       set((s) => {
         if (s.messages.some((m) => m.id === incoming.id)) return s

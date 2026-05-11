@@ -2,18 +2,19 @@
 import { useRoomStore } from "@/store/room-store"
 
 const LABELS = {
-  disconnected: "已断开",
-  connecting: "连接中…",
-  reconnecting: "重连中…",
-  connected: "已连接",
+  disconnected: { text: "信号丢了，鸽了", dot: "var(--mist-500)" },
+  connecting: { text: "正在连接…", dot: "var(--bilibili-cyan)" },
+  reconnecting: { text: "重连中…", dot: "var(--danwei-yellow)" },
+  connected: { text: "同步中", dot: "var(--online-green)" },
 } as const
 
 export function ConnectionStatus() {
   const status = useRoomStore((s) => s.connectionStatus)
-  if (status === "connected") return null
+  const meta = LABELS[status]
   return (
-    <div className="rounded-md border bg-muted px-3 py-2 text-xs text-muted-foreground">
-      {LABELS[status]}
+    <div className="flex items-center gap-2 rounded-full bg-[var(--ink-deeper)] px-3 py-1.5 text-xs text-[var(--mist-300)]">
+      <span className="inline-block size-2 rounded-full" style={{ background: meta.dot }} />
+      {meta.text}
     </div>
   )
 }
