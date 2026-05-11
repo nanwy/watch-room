@@ -2,6 +2,8 @@ import { rm } from "node:fs/promises"
 import path from "node:path"
 
 import { getPrisma } from "@workspace/db/client"
+import { normalizeImportKey } from "@workspace/db/media-scanner"
+import { z } from "zod"
 
 import { isAdminRequest, unauthorizedResponse } from "../../../../../../lib/admin-auth"
 
@@ -18,11 +20,24 @@ export type DeleteEpisodeDeps = {
   removeFile: (filePath: string) => Promise<void>
 }
 
+export type UpdateEpisodeDeps = {
+  getPrismaClient: () => PrismaClient
+}
+
 const defaultDeps: DeleteEpisodeDeps = {
   getEnv: (key) => process.env[key],
   getPrismaClient: getPrisma,
   removeFile: (filePath) => rm(filePath, { force: true }),
 }
+
+const defaultUpdateDeps: UpdateEpisodeDeps = {
+  getPrismaClient: getPrisma,
+}
+
+const updateEpisodeSchema = z.object({
+  title: z.string().trim().min(1, "Title is required"),
+  episodeNumber: z.number().int().positive().nullable().optional(),
+})
 
 function isInsideStorage(storageRoot: string, filePath: string) {
   const absoluteStorage = path.resolve(storageRoot)
@@ -82,5 +97,39 @@ export function createDeleteEpisodeHandler(deps: DeleteEpisodeDeps = defaultDeps
     }
 
     return Response.json({ deleted: true })
+  }
+}
+
+export function createUpdateEpisodeHandler(deps: UpdateEpisodeDeps = defaultUpdateDeps) {
+  return async function handleUpdateEpisode(
+    request: Request,
+    context: { params: Promise<{ episodeId: string }> },
+  ) {
+    if (!isAdminRequest(request)) {
+      return unauthorizedResponse()
+    }
+
+    const parsed = updateEpisodeSchema.safeParse(await request.json().catch(() => null))
+    if (!parsed.success) {
+      return Response.json({ error: parsed.error.issues[0]?.message ?? "Invalid episode update" }, { status: 400 })
+    }
+
+    const { episodeId } = await context.params
+    const prisma = deps.getPrismaClient()
+    const episode = await prisma.episode.update({
+      where: { id: episodeId },
+      data: {
+        title: parsed.data.title,
+        normalizedTitle: normalizeImportKey(parsed.data.title),
+        episodeNumber: parsed.data.episodeNumber ?? null,
+      },
+      select: {
+        id: true,
+        title: true,
+        episodeNumber: true,
+      },
+    })
+
+    return Response.json(episode)
   }
 }

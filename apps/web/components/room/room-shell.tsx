@@ -1,7 +1,9 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
 import type { Socket } from "socket.io-client"
+import { useQuery } from "@tanstack/react-query"
 
+import type { PlaybackControlInput } from "@workspace/shared/events"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs"
 
 import { JoinRoomForm } from "./join-room-form"
@@ -10,15 +12,23 @@ import { MemberList } from "./member-list"
 import { WatchPlayer } from "./watch-player"
 import { ChatPanel } from "./chat-panel"
 import { EpisodeSwitcher } from "./episode-switcher"
+import { findNextEpisode } from "./episode-playback"
 import { RoomFooter } from "./room-footer"
 import { getOrCreateClientId } from "@/lib/client-id"
 import { createRoomSocket } from "@/lib/socket-client"
 import { useRoomStore, type ChatMessage, type Member, type PlaybackState, type RoomSnapshot } from "@/store/room-store"
 
+type LibraryAnime = {
+  id: string
+  title: string
+  episodes: { id: string; title: string; episodeNumber: number | null }[]
+}
+
 export function RoomShell({ snapshot }: { snapshot: RoomSnapshot }) {
   const [nickname, setNickname] = useState<string | null>(() =>
     typeof window === "undefined" ? null : window.localStorage.getItem("watch-room.nickname"),
   )
+  const [endNotice, setEndNotice] = useState<{ episodeId: string; message: string } | null>(null)
   const socketRef = useRef<Socket | null>(null)
   const setRoomState = useRoomStore((s) => s.setRoomState)
   const setPlaybackState = useRoomStore((s) => s.setPlaybackState)
@@ -26,8 +36,20 @@ export function RoomShell({ snapshot }: { snapshot: RoomSnapshot }) {
   const setHistory = useRoomStore((s) => s.setHistory)
   const reconcileChat = useRoomStore((s) => s.reconcileChat)
   const setConnectionStatus = useRoomStore((s) => s.setConnectionStatus)
+  const setIsSwitching = useRoomStore((s) => s.setIsSwitching)
   const members = useRoomStore((s) => s.members)
   const messages = useRoomStore((s) => s.messages)
+  const liveRoom = useRoomStore((s) => s.room) ?? snapshot
+  const clientId = typeof window === "undefined" ? "" : (window.localStorage.getItem("watch-room.clientId") ?? "")
+  const { data: library = [] } = useQuery<LibraryAnime[]>({
+    queryKey: ["library"],
+    enabled: Boolean(nickname),
+    queryFn: async () => {
+      const res = await fetch("/api/library")
+      if (!res.ok) throw new Error(`library fetch failed: ${res.status}`)
+      return res.json()
+    },
+  })
 
   useEffect(() => { setRoomState(snapshot) }, [snapshot, setRoomState])
 
@@ -55,6 +77,43 @@ export function RoomShell({ snapshot }: { snapshot: RoomSnapshot }) {
     return () => { socket.disconnect(); socketRef.current = null }
   }, [nickname, snapshot.slug, setRoomState, setPlaybackState, setMembers, setHistory, reconcileChat, setConnectionStatus])
 
+  function emitPlaybackControl(payload: PlaybackControlInput, ack?: (response?: { ok: boolean; error?: string }) => void) {
+    socketRef.current?.emit("playback:control", payload, ack)
+  }
+
+  function handlePlaybackEnded() {
+    const next = findNextEpisode(library, liveRoom.currentAnime.id, liveRoom.currentEpisode.id)
+    if (!next) {
+      setEndNotice({ episodeId: liveRoom.currentEpisode.id, message: "这一部已经播完，请手动切换番剧。" })
+      return
+    }
+
+    setIsSwitching(true)
+    setEndNotice(null)
+    emitPlaybackControl({
+      type: "switchEpisode",
+      roomSlug: liveRoom.slug,
+      clientId,
+      animeId: next.animeId,
+      episodeId: next.episodeId,
+    }, (response) => {
+      if (!response?.ok) {
+        setIsSwitching(false)
+        setEndNotice({
+          episodeId: liveRoom.currentEpisode.id,
+          message: response?.error ?? "自动切换下一集失败，请手动切换。",
+        })
+        return
+      }
+      emitPlaybackControl({
+        type: "play",
+        roomSlug: liveRoom.slug,
+        clientId,
+        positionSeconds: 0,
+      })
+    })
+  }
+
   if (!nickname) {
     return (
       <div className="b-station flex min-h-screen flex-col">
@@ -71,10 +130,6 @@ export function RoomShell({ snapshot }: { snapshot: RoomSnapshot }) {
       </div>
     )
   }
-
-  const clientId = typeof window === "undefined" ? "" : (window.localStorage.getItem("watch-room.clientId") ?? "")
-  const liveRoom = useRoomStore((s) => s.room) ?? snapshot
-
   return (
     <div className="b-station flex min-h-screen flex-col">
       <header className="b-surface-translucent-deep flex items-center justify-between gap-3 border-b border-[var(--ink-border)] px-4 py-3 lg:px-6">
@@ -86,7 +141,7 @@ export function RoomShell({ snapshot }: { snapshot: RoomSnapshot }) {
           <EpisodeSwitcher
             roomSlug={liveRoom.slug}
             clientId={clientId}
-            onSwitch={(payload) => socketRef.current?.emit("playback:control", payload)}
+            onSwitch={(payload) => emitPlaybackControl(payload)}
           />
           <ConnectionStatus />
         </div>
@@ -98,8 +153,10 @@ export function RoomShell({ snapshot }: { snapshot: RoomSnapshot }) {
             episodeId={liveRoom.currentEpisode.id}
             playbackSupportStatus={liveRoom.currentEpisode.playbackSupportStatus}
             clientId={clientId}
+            endNotice={endNotice?.episodeId === liveRoom.currentEpisode.id ? endNotice.message : null}
+            onEnded={handlePlaybackEnded}
             onControl={(event) => {
-              socketRef.current?.emit("playback:control", {
+              emitPlaybackControl({
                 roomSlug: liveRoom.slug,
                 clientId,
                 ...event,

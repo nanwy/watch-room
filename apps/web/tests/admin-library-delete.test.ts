@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest"
 
 import { createDeleteAnimeHandler } from "../app/api/admin/library/anime/[animeId]/handler"
-import { createDeleteEpisodeHandler } from "../app/api/admin/library/episodes/[episodeId]/handler"
+import {
+  createDeleteEpisodeHandler,
+  createUpdateEpisodeHandler,
+} from "../app/api/admin/library/episodes/[episodeId]/handler"
 
 const ORIGINAL_ENV = process.env
 
@@ -67,6 +70,56 @@ describe("admin library delete routes", () => {
     expect(response.status).toBe(200)
     expect(prisma.episode.delete).toHaveBeenCalledWith({ where: { id: "episode-1" } })
     expect(removeFile).toHaveBeenCalledWith("/media/anime/episode.mp4")
+  })
+
+  test("updates an episode title and episode number", async () => {
+    const prisma = {
+      episode: {
+        update: vi.fn().mockResolvedValue({
+          id: "episode-1",
+          title: "05.小生意気ロマンティックが止まらない",
+          normalizedTitle: "05.小生意気ロマンティックが止まらない",
+          episodeNumber: 5,
+        }),
+      },
+    }
+    const handler = createUpdateEpisodeHandler({
+      getPrismaClient: () => prisma as never,
+    })
+
+    const response = await handler(new Request("http://app.test", {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        "x-admin-passcode": "secret",
+      },
+      body: JSON.stringify({
+        title: " 05.小生意気ロマンティックが止まらない ",
+        episodeNumber: 5,
+      }),
+    }), {
+      params: Promise.resolve({ episodeId: "episode-1" }),
+    })
+
+    expect(response.status).toBe(200)
+    expect(prisma.episode.update).toHaveBeenCalledWith({
+      where: { id: "episode-1" },
+      data: {
+        title: "05.小生意気ロマンティックが止まらない",
+        normalizedTitle: "05.小生意気ロマンティックが止まらない",
+        episodeNumber: 5,
+      },
+      select: {
+        id: true,
+        title: true,
+        episodeNumber: true,
+      },
+    })
+    await expect(response.json()).resolves.toMatchObject({
+      id: "episode-1",
+      title: "05.小生意気ロマンティックが止まらない",
+      episodeNumber: 5,
+    })
   })
 
   test("rejects episode deletion when the file is outside storage", async () => {

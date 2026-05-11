@@ -1,7 +1,7 @@
 "use client"
 
 import { useMutation } from "@tanstack/react-query"
-import { Trash2 } from "lucide-react"
+import { Pencil, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 
@@ -18,7 +18,16 @@ import {
 } from "@workspace/ui/components/alert-dialog"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@workspace/ui/components/dialog"
 import { Input } from "@workspace/ui/components/input"
+import { Label } from "@workspace/ui/components/label"
 import {
   Table,
   TableBody,
@@ -45,6 +54,12 @@ type DeleteTarget =
   | { type: "episode"; id: string; title: string }
   | { type: "anime"; id: string; title: string }
 
+type EditTarget = {
+  id: string
+  title: string
+  episodeNumber: number | null
+}
+
 async function deleteLibraryResource(input: { target: DeleteTarget; passcode: string }) {
   const path = input.target.type === "anime"
     ? `/api/admin/library/anime/${input.target.id}`
@@ -62,10 +77,40 @@ async function deleteLibraryResource(input: { target: DeleteTarget; passcode: st
   return response.json() as Promise<{ deleted: true }>
 }
 
+async function updateLibraryEpisode(input: {
+  target: EditTarget
+  title: string
+  episodeNumber: number | null
+  passcode: string
+}) {
+  const response = await fetch(`/api/admin/library/episodes/${input.target.id}`, {
+    method: "PATCH",
+    headers: {
+      "content-type": "application/json",
+      "x-admin-passcode": input.passcode,
+    },
+    body: JSON.stringify({
+      title: input.title,
+      episodeNumber: input.episodeNumber,
+    }),
+  })
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { error?: string } | null
+    throw new Error(payload?.error ?? "更新失败")
+  }
+
+  return response.json() as Promise<{ id: string; title: string; episodeNumber: number | null }>
+}
+
 export function LibraryTable({ anime }: { anime: LibraryAnime[] }) {
   const router = useRouter()
   const [passcode, setPasscode] = useState("")
   const [target, setTarget] = useState<DeleteTarget | null>(null)
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null)
+  const [editTitle, setEditTitle] = useState("")
+  const [editEpisodeNumber, setEditEpisodeNumber] = useState("")
+  const [editPasscode, setEditPasscode] = useState("")
   const mutation = useMutation({
     mutationFn: deleteLibraryResource,
     onSuccess: () => {
@@ -73,6 +118,21 @@ export function LibraryTable({ anime }: { anime: LibraryAnime[] }) {
       router.refresh()
     },
   })
+  const updateMutation = useMutation({
+    mutationFn: updateLibraryEpisode,
+    onSuccess: () => {
+      setEditTarget(null)
+      router.refresh()
+    },
+  })
+
+  function openEditDialog(episode: EditTarget) {
+    setEditTarget(episode)
+    setEditTitle(episode.title)
+    setEditEpisodeNumber(episode.episodeNumber === null ? "" : String(episode.episodeNumber))
+    setEditPasscode("")
+    updateMutation.reset()
+  }
 
   if (anime.length === 0) {
     return (
@@ -83,12 +143,13 @@ export function LibraryTable({ anime }: { anime: LibraryAnime[] }) {
   }
 
   return (
-    <AlertDialog open={target !== null} onOpenChange={(open) => {
-      if (!open) {
-        setTarget(null)
-        mutation.reset()
-      }
-    }}>
+    <>
+      <AlertDialog open={target !== null} onOpenChange={(open) => {
+        if (!open) {
+          setTarget(null)
+          mutation.reset()
+        }
+      }}>
       <Table>
         <TableHeader>
           <TableRow>
@@ -97,7 +158,7 @@ export function LibraryTable({ anime }: { anime: LibraryAnime[] }) {
             <TableHead>格式</TableHead>
             <TableHead>状态</TableHead>
             <TableHead className="text-right">大小</TableHead>
-            <TableHead className="w-28 text-right">操作</TableHead>
+            <TableHead className="w-40 text-right">操作</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -141,8 +202,18 @@ export function LibraryTable({ anime }: { anime: LibraryAnime[] }) {
               <TableCell className="text-right tabular-nums">
                 {formatBytes(episode.fileSizeBytes)}
               </TableCell>
-              <TableCell className="text-right">
-                <AlertDialogTrigger asChild>
+              <TableCell>
+                <div className="flex justify-end gap-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => openEditDialog(episode)}
+                  >
+                    <Pencil />
+                    编辑
+                  </Button>
+                  <AlertDialogTrigger asChild>
                   <Button
                     type="button"
                     size="sm"
@@ -157,7 +228,8 @@ export function LibraryTable({ anime }: { anime: LibraryAnime[] }) {
                     <Trash2 />
                     删除
                   </Button>
-                </AlertDialogTrigger>
+                  </AlertDialogTrigger>
+                </div>
               </TableCell>
             </TableRow>
           )))}
@@ -201,6 +273,84 @@ export function LibraryTable({ anime }: { anime: LibraryAnime[] }) {
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+      <Dialog open={editTarget !== null} onOpenChange={(open) => {
+        if (!open) {
+          setEditTarget(null)
+          updateMutation.reset()
+        }
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>编辑剧集</DialogTitle>
+            <DialogDescription>
+              只修改资源库里的展示名称和集数，不会改动视频文件。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="episode-title">剧集名称</Label>
+              <Input
+                id="episode-title"
+                value={editTitle}
+                onChange={(event) => setEditTitle(event.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="episode-number">集数</Label>
+              <Input
+                id="episode-number"
+                type="number"
+                min="1"
+                inputMode="numeric"
+                value={editEpisodeNumber}
+                onChange={(event) => setEditEpisodeNumber(event.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-passcode">管理员口令</Label>
+              <Input
+                id="edit-passcode"
+                type="password"
+                value={editPasscode}
+                autoComplete="current-password"
+                onChange={(event) => setEditPasscode(event.target.value)}
+              />
+            </div>
+            <div className="min-h-5 text-sm text-destructive">
+              {updateMutation.isError ? updateMutation.error.message : null}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={updateMutation.isPending}
+              onClick={() => setEditTarget(null)}
+            >
+              取消
+            </Button>
+            <Button
+              type="button"
+              disabled={!editTarget || !editTitle.trim() || !editPasscode || updateMutation.isPending}
+              onClick={() => {
+                if (!editTarget || !editTitle.trim() || !editPasscode) return
+                const parsedEpisodeNumber = editEpisodeNumber.trim()
+                  ? Number.parseInt(editEpisodeNumber, 10)
+                  : null
+                updateMutation.mutate({
+                  target: editTarget,
+                  title: editTitle.trim(),
+                  episodeNumber: Number.isFinite(parsedEpisodeNumber) ? parsedEpisodeNumber : null,
+                  passcode: editPasscode,
+                })
+              }}
+            >
+              保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 

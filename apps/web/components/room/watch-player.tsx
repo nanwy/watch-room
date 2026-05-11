@@ -22,6 +22,8 @@ type Props = {
   episodeId: string
   playbackSupportStatus: "supported" | "maybeUnsupported"
   clientId: string
+  endNotice?: string | null
+  onEnded?: () => void
   onControl: (event:
     | { type: "play"; positionSeconds: number }
     | { type: "pause"; positionSeconds: number }
@@ -30,7 +32,7 @@ type Props = {
   ) => void
 }
 
-export function WatchPlayer({ episodeId, playbackSupportStatus, clientId, onControl }: Props) {
+export function WatchPlayer({ episodeId, playbackSupportStatus, clientId, endNotice, onEnded, onControl }: Props) {
   const ref = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const playbackState = useRoomStore((s) => s.playbackState)
@@ -71,6 +73,12 @@ export function WatchPlayer({ episodeId, playbackSupportStatus, clientId, onCont
     setError(null)
     programmaticSeekTargetRef.current = null
     localControlUntilRef.current = 0
+  }, [episodeId])
+
+  useEffect(() => {
+    // Updating a nested <source> changes the DOM, but browsers do not have to reload
+    // an existing HTMLMediaElement. Force the element to pick up the new episode URL.
+    ref.current?.load()
   }, [episodeId])
 
   useEffect(() => {
@@ -210,6 +218,7 @@ export function WatchPlayer({ episodeId, playbackSupportStatus, clientId, onCont
             markLocalControlPending()
             onControl({ type: "setPlaybackRate", positionSeconds: ref.current.currentTime, playbackRate: ref.current.playbackRate })
           }}
+          onEnded={onEnded}
           onError={() => setError("视频出错了，可能文件缺失或格式不支持")}
         >
           <source src={mediaUrl(episodeId)} />
@@ -223,6 +232,11 @@ export function WatchPlayer({ episodeId, playbackSupportStatus, clientId, onCont
         <div className="pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-[oklch(0.10_0.04_340/0.7)] backdrop-blur-sm">
           <TvMascot size={56} bob />
           <p className="text-sm font-medium text-[var(--mist-100)]">正在切换…前方高能</p>
+        </div>
+      ) : null}
+      {endNotice ? (
+        <div className="pointer-events-none absolute inset-x-4 bottom-20 z-30 rounded-lg border border-[var(--ink-border)] bg-black/75 px-4 py-3 text-sm font-medium text-[var(--mist-100)] backdrop-blur-sm">
+          {endNotice}
         </div>
       ) : null}
       </div>
