@@ -21,7 +21,10 @@ function loadEnvFile(filePath) {
 }
 
 const root = __dirname
-const fileEnv = loadEnvFile(path.join(root, ".env"))
+const fileEnv = {
+  ...loadEnvFile(path.join(root, ".env")),
+  ...loadEnvFile(path.join(root, ".env.production")),
+}
 
 module.exports = {
   apps: [
