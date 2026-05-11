@@ -9,6 +9,7 @@ import { useRoomStore } from "@/store/room-store"
 const DRIFT_THRESHOLD_SECONDS = 1.5
 const PROGRAMMATIC_WINDOW_MS = 600
 const LOCAL_CONTROL_CONFIRM_MS = 3500
+const SEEK_SUPPRESS_MS = 800
 
 type Props = {
   episodeId: string
@@ -27,10 +28,19 @@ export function WatchPlayer({ episodeId, episodeMimeType, playbackSupportStatus,
   const playbackState = useRoomStore((s) => s.playbackState)
   const programmaticUntilRef = useRef(0)
   const localControlUntilRef = useRef(0)
+  const seekSuppressUntilRef = useRef(0)
   const [error, setError] = useState<string | null>(null)
 
   function isProgrammatic() {
     return Date.now() < programmaticUntilRef.current
+  }
+
+  function isSeekInProgress() {
+    return Date.now() < seekSuppressUntilRef.current
+  }
+
+  function markSeekActivity() {
+    seekSuppressUntilRef.current = Date.now() + SEEK_SUPPRESS_MS
   }
 
   function withProgrammatic(fn: () => void) {
@@ -125,20 +135,28 @@ export function WatchPlayer({ episodeId, episodeMimeType, playbackSupportStatus,
         className="aspect-video w-full bg-black"
         onPlay={() => {
           if (isProgrammatic()) return
+          if (isSeekInProgress()) return
           const state = useRoomStore.getState().playbackState
           if (state?.status === "playing") return
           markLocalControlPending()
           onControl({ type: "play", positionSeconds: ref.current?.currentTime ?? 0 })
         }}
         onPause={() => {
-          if (isProgrammatic()) return
+          if (isProgrammatic() || !ref.current) return
+          if (ref.current.seeking || isSeekInProgress()) return
+          if (ref.current.ended) return
           const state = useRoomStore.getState().playbackState
           if (state?.status === "paused") return
           markLocalControlPending()
-          onControl({ type: "pause", positionSeconds: ref.current?.currentTime ?? 0 })
+          onControl({ type: "pause", positionSeconds: ref.current.currentTime })
+        }}
+        onSeeking={() => {
+          if (isProgrammatic()) return
+          markSeekActivity()
         }}
         onSeeked={() => {
           if (isProgrammatic() || !ref.current) return
+          markSeekActivity()
           const state = useRoomStore.getState().playbackState
           if (!state) return
           const expected = calculateEffectivePosition({
