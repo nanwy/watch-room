@@ -13,6 +13,9 @@ export default function Page() {
               <Link href="/admin/rooms/new">创建房间</Link>
             </Button>
             <Button asChild variant="outline">
+              <Link href="/admin/rooms">房间列表</Link>
+            </Button>
+            <Button asChild variant="outline">
               <Link href="/admin/library">媒体库</Link>
             </Button>
           </div>
